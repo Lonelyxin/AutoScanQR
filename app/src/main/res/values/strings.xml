@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">微信辅助工具</string>
+    <string name="accessibility_name">微信辅助</string>
+    <string name="open_accessibility">开启辅助功能</string>
+    <string name="enter_wechat">进入微信</string>
+    <string name="description">点击右上角开关，在弹出对话框中点击\"确定\"。\r\n\r\n
+        辅助功能：\r\n
+        \t\t1、微信自动扫码登陆网页版；\r\n
+        \t\t2、保持微信长驻前台。\r\n
+        提示：\r\n
+        \t\t开启后请到微信主页面，即可享受辅助服务。\r\n
+        \t\t支持Android 4.1以上系统。
+    </string>
+</resources>
