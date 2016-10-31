@@ -25,12 +25,15 @@ public class ScanQRService extends AccessibilityService {
     private boolean autoClickFunctionButton = false;
     private boolean autoClickScanQR = false;
 
-    private static final int AUTO_LONG_CLICK_LOGIN_INFO = 1;
-    private static final int AUTO_DELETE_LOGIN_INFO = 2;
-    private static final int AUTO_CLICK_MORE_FUNCTION_BUTTON =3;
-    private static final int AUTO_CLICK_SCAN_QR =4;
-    private static final int AUTO_CLICK_LOGIN =5;
-    private static final int AUTO_START_WECHAT =6;
+    private static final int AUTO_LONG_CLICK_LOGIN_INFO = 1; // 长按消息
+    private static final int AUTO_DELETE_LOGIN_INFO = 2; // 删除登陆触发信息
+    private static final int AUTO_CLICK_MORE_FUNCTION_BUTTON =3; // 点击"更多功能"
+    private static final int AUTO_CLICK_SCAN_QR =4; // 点击"扫一扫"
+    private static final int AUTO_CLICK_LOGIN =5; // 点击扫码后的"登录"按钮
+    private static final int AUTO_START_WECHAT =6; // 启动微信
+    private static final int AUTO_ADD_FRIEND =7; // 通过好友验证
+    private static final int AUTO_SEND_MESSAGES =8; // 群发消息
+    private static final int AUTO_SEND_GROUP_MESSAGES =9; // 发群消息
 
     Handler delayHandler = new Handler(){
         @Override
@@ -121,7 +124,7 @@ public class ScanQRService extends AccessibilityService {
         }
 
         int eventType = accessibilityEvent.getEventType();
-        String eventText = "";
+        String eventText;
         printLog(openLog,"xinye", "eventType: "+eventType);
         switch (eventType) {
             case AccessibilityEvent.TYPE_VIEW_CLICKED:
@@ -217,7 +220,7 @@ public class ScanQRService extends AccessibilityService {
     }
 
     /**
-     * 模拟长按点击聊天信息
+     * 收到扫码登陆的触发条件后，模拟长按点击聊天信息
      * @param eventNodeInfo eventNodeInfo
      */
     private void longClickLoginInfo(AccessibilityNodeInfo eventNodeInfo){
