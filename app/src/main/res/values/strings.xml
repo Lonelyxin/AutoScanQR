@@ -14,4 +14,10 @@
         \t\t开启后请到微信主页面，即可享受辅助服务。\r\n
         \t\t支持Android 4.1以上系统。
     </string>
+    <string name="message_list_item">com.tencent.mm:id/ads</string>
+    <string name="function_view">com.tencent.mm:id/es</string>
+    <string name="message_textview">com.tencent.mm:id/adw</string>
+    <string name="scan_view">com.tencent.mm:id/et</string>
+    <string name="delete_message_view">com.tencent.mm:id/et</string>
+    <string name="login_view">com.tencent.mm:id/af3</string>
 </resources>

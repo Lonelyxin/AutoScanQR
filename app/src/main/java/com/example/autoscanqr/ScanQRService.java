@@ -6,6 +6,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -17,6 +18,7 @@ import java.util.List;
 public class ScanQRService extends AccessibilityService {
 
     private AccessibilityNodeInfo mAccessibilityNodeInfo = null;
+    private Resources resources = getResources();
     private CharSequence preClickDes;
     private boolean openLog = true;
 
@@ -51,6 +53,7 @@ public class ScanQRService extends AccessibilityService {
                     autoDeleteLoginInfo = true;
                     break;
                 case AUTO_CLICK_MORE_FUNCTION_BUTTON:
+                    printLog(openLog,"xinye", "clickMoreFunction performAction click");
                     AccessibilityNodeInfo functionInfoNode = (AccessibilityNodeInfo) msg.obj;
                     functionInfoNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     autoDeleteLoginInfo = false;
@@ -155,7 +158,7 @@ public class ScanQRService extends AccessibilityService {
                 longClickLoginInfo(mAccessibilityNodeInfo);
                 /*随后模拟点击"+"更多功能
                  */
-                clickMoreFunction(findMoreFunctionButton("com.tencent.mm:id/e8"));
+                clickMoreFunction(findMoreFunctionButton());
                 /*扫码完成后，同样会进入该case，窗口内容绘制
                     找到可辨识的内容"网页版微信登录确认"、"登录"、"取消登录"
                     确认是网页版登陆确认窗口，准备点击登陆按钮
@@ -183,29 +186,31 @@ public class ScanQRService extends AccessibilityService {
             return;
         }
         List<AccessibilityNodeInfo> delNodeInfos =
-                eventNodeInfo.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/e9");
-        if(delNodeInfos != null && delNodeInfos.size()>0){
-            AccessibilityNodeInfo delNode = delNodeInfos.get(2);
-            // 在长按后第三条选项中拿到"删除该聊天"的节点，然后执行删除信息操作
-            if(delNode!=null && "删除该聊天".equals(delNode.getText())){
-                Message deleteMsg = new Message();
-                deleteMsg.what = AUTO_DELETE_LOGIN_INFO;
-                deleteMsg.obj = delNode.getParent();
-                delayHandler.sendMessageDelayed(deleteMsg, 1000);// 延时1秒执行
+                eventNodeInfo.findAccessibilityNodeInfosByViewId(
+                        resources.getString(R.string.delete_message_view));
+        // 在长按后选项中拿到"删除该聊天"的节点，然后执行删除信息操作
+        if(delNodeInfos != null && delNodeInfos.size()>0) {
+            for (AccessibilityNodeInfo delNode : delNodeInfos) {
+                if ("删除该聊天".equals(delNode.getText())) {
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_DELETE_LOGIN_INFO;
+                    deleteMsg.obj = delNode.getParent();
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);// 延时1秒执行
+                }
             }
         }
     }
 
     /**
      * 找到"+"更多功能按钮
-     * @param viewId "+"更多功能按钮的ID
      * @return "+"更多功能按钮
      */
-    private AccessibilityNodeInfo findMoreFunctionButton(String viewId){
+    private AccessibilityNodeInfo findMoreFunctionButton(){
         AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
         if(rootNodeInfo==null)
             return null;
-        List<AccessibilityNodeInfo> nodes = rootNodeInfo.findAccessibilityNodeInfosByViewId(viewId);
+        List<AccessibilityNodeInfo> nodes = rootNodeInfo.findAccessibilityNodeInfosByViewId(
+                resources.getString(R.string.function_view));
         if(nodes != null && nodes.size()>0){
             AccessibilityNodeInfo functionNode = nodes.get(0);
             if(functionNode!=null){
@@ -225,17 +230,25 @@ public class ScanQRService extends AccessibilityService {
      */
     private void longClickLoginInfo(AccessibilityNodeInfo eventNodeInfo){
         List<AccessibilityNodeInfo> msgNodeInfos =
-                eventNodeInfo.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/ad8");
+                eventNodeInfo.findAccessibilityNodeInfosByViewId(
+                        resources.getString(R.string.message_textview));
+        printLog(openLog, "xinye", "longClickLoginInfo start");
         if(msgNodeInfos!=null && msgNodeInfos.size()>0){
+            printLog(openLog, "xinye", "longClickLoginInfo msgNodeInfos!=null");
             // 一般情况下刚收的消息会被置顶，因此取list的第一条item
             AccessibilityNodeInfo msgNode = msgNodeInfos.get(0);
             if(msgNode != null){
+                printLog(openLog, "xinye", "longClickLoginInfo msgNode!=null");
                 CharSequence text =  msgNode.getText();
                 if(text!=null && "芝麻开门".equalsIgnoreCase(text.toString())){
-                    List<AccessibilityNodeInfo> parentNodes = eventNodeInfo.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/ad4");
+                    List<AccessibilityNodeInfo> parentNodes = eventNodeInfo.findAccessibilityNodeInfosByViewId(
+                            resources.getString(R.string.message_list_item));
+                    printLog(openLog, "xinye", "longClickLoginInfo text!=null");
                     if(parentNodes!=null && parentNodes.size()>0){
+                        printLog(openLog, "xinye", "longClickLoginInfo parentNodes!=null");
                         AccessibilityNodeInfo parentNode = parentNodes.get(0);
                         if(parentNode!=null){
+                            printLog(openLog, "xinye", "longClickLoginInfo send long click message");
                             Message msg = new Message();
                             msg.what = AUTO_LONG_CLICK_LOGIN_INFO;
                             msg.obj = parentNode;
@@ -252,12 +265,11 @@ public class ScanQRService extends AccessibilityService {
      * @param moreFunctionView "+"更多功能按钮
      */
     private void clickMoreFunction(AccessibilityNodeInfo moreFunctionView){
-        printLog(openLog,"xinye", "clickMoreFunction start");
         // 当能找到"+"按钮，并且自动执行过删除触发信息的操作，才能自动执行点击"+"的操作
         // 避免手动点击"+"和自动点击的相互干扰
         if(moreFunctionView != null && autoDeleteLoginInfo){
+            printLog(openLog,"xinye", "clickMoreFunction start");
             // 去模拟点击微信的"+"按钮，打开更多功能列表，进而模拟点击扫一扫
-            printLog(openLog,"xinye", "clickMoreFunction performAction click");
             Message deleteMsg = new Message();
             deleteMsg.what = AUTO_CLICK_MORE_FUNCTION_BUTTON;
             deleteMsg.obj = moreFunctionView.getParent();
@@ -276,7 +288,8 @@ public class ScanQRService extends AccessibilityService {
         if(preClickDes != null && "更多功能按钮".equals(preClickDes)){
             // 找到更多功能按钮列表， 根据id值"com.tencent.mm:id/e9"，遍历出目标按钮“扫一扫”
             List<AccessibilityNodeInfo> functionNodeInfos =
-                    mAccessibilityNodeInfo.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/e9");
+                    mAccessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
+                            resources.getString(R.string.scan_view));
             if(functionNodeInfos!=null && functionNodeInfos.size()>=3){
                 // 目前更多功能列表中，第三条Node就是“扫一扫”
                 AccessibilityNodeInfo scanNode = functionNodeInfos.get(2);
@@ -304,7 +317,8 @@ public class ScanQRService extends AccessibilityService {
         if( loginNodeInfos == null || loginNodeInfos.size()<=0){
             return;
         }
-        loginNodeInfos = mAccessibilityNodeInfo.findAccessibilityNodeInfosByViewId("com.tencent.mm:id/aec");
+        loginNodeInfos = mAccessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
+                resources.getString(R.string.login_view));
         if(loginNodeInfos!=null && loginNodeInfos.size()>0){
             // 一般情况下刚收的消息会被置顶，因此取list的第一条item
             AccessibilityNodeInfo loginNode = loginNodeInfos.get(0);
