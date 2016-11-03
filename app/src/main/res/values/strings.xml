@@ -20,4 +20,5 @@
     <string name="scan_view">com.tencent.mm:id/et</string>
     <string name="delete_message_view">com.tencent.mm:id/et</string>
     <string name="login_view">com.tencent.mm:id/af3</string>
+    <string name="me_view">com.tencent.mm:id/bnu</string>
 </resources>
