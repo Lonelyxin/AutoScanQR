@@ -9,7 +9,6 @@
         \t\t2、保持微信长驻前台。\r\n
         \t\t3、自动通过好友验证。\r\n
         \t\t4、自动群发消息。\r\n
-        \t\t5、自动向微信群发消息。\r\n
         提示：\r\n
         \t\t开启后请到微信主页面，即可享受辅助服务。\r\n
         \t\t支持Android 4.1以上系统。
@@ -21,4 +20,14 @@
     <string name="delete_message_view">com.tencent.mm:id/et</string>
     <string name="login_view">com.tencent.mm:id/af3</string>
     <string name="me_view">com.tencent.mm:id/bnu</string>
+    <string name="settings_view">android:id/title</string>
+    <string name="common_view">android:id/title</string>
+    <string name="feature_view">android:id/title</string>
+    <string name="msg_helper_view">android:id/title</string>
+    <string name="start_msg_view">android:id/title</string>
+    <string name="choose_all_view">com.tencent.mm:id/bmr</string>
+    <string name="next_view">com.tencent.mm:id/fw</string>
+    <string name="edit_view">com.tencent.mm:id/a2a</string>
+    <string name="send_view">com.tencent.mm:id/a2g</string>
+    <string name="back_view">com.tencent.mm:id/gd</string>
 </resources>

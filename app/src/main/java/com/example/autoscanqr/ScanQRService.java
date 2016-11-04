@@ -2,10 +2,16 @@ package com.example.autoscanqr;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.Notification;
+import android.app.PendingIntent;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -20,34 +26,59 @@ public class ScanQRService extends AccessibilityService {
     private CharSequence preClickDes;
     private boolean openLog = true;
 
-    private boolean gotLoginInfo = false;
-    private boolean autoDeleteLoginInfo = false;
-    private boolean autoClickFunctionButton = false;
-    private boolean autoClickScanQR = false;
-
-    private boolean gotSendMsgInfo = false;
-    private boolean autoDeleteMsgInfo = false;
-    private boolean autoClickMe = false;
-    private boolean autoClickSettings = false;
-    private boolean autoClickFeature = false;
+    // 自动扫码登录微信网页版
+    private boolean gotLoginInfo = false;// 获取登录触发消息
+    private boolean autoDeleteLoginInfo = false;// 删除触发登陆消息
+    private boolean autoClickFunctionButton = false;// 点击更多功能"+"
+    private boolean autoClickScanQR = false;// 点击 扫一扫
 
     private static final int AUTO_LONG_CLICK_LOGIN_INFO = 1; // 长按登录触发消息
     private static final int AUTO_DELETE_LOGIN_INFO = 2; // 删除登陆触发信息
     private static final int AUTO_CLICK_MORE_FUNCTION_BUTTON =3; // 点击"更多功能"
     private static final int AUTO_CLICK_SCAN_QR =4; // 点击"扫一扫"
     private static final int AUTO_CLICK_LOGIN =5; // 点击扫码后的"登录"按钮
-    private static final int AUTO_START_WECHAT =6; // 启动微信
-    private static final int AUTO_ADD_FRIEND =7; // 通过好友验证
-    private static final int AUTO_SEND_MESSAGES =8; // 群发消息
-    private static final int AUTO_SEND_GROUP_MESSAGES =9; // 发群消息
 
+    //自动群发消息
+    private boolean gotSendMsgInfo = false;// 获取群发触发消息
+    private boolean autoDeleteMsgInfo = false;// 删除群发触发消息
+    private boolean autoClickMe = false;// 点击我
+    private boolean autoClickSettings = false;// 点击设置
+    private boolean autoClickCommon = false; // 点击通用
+    private boolean autoClickFeature = false;// 点击功能
+    private boolean autoClickMsgHelper = false;// 点击群发助手
+    private boolean autoClickStartMsg = false;// 点击开始群发
+    private boolean autoClickNewMsg = false;//点击新建群发
+    private boolean autoClickChooseAll = false;//点击全选
+    private boolean autoClickNext = false;//点击下一步
+    private boolean autoSetMsg = false;//填写群发内容
+    private boolean autoSendMsg = false;//点击发送
+
+    private static final int AUTO_LONG_CLICK_MSG_INFO =12; // 长按群发触发消息
+    private static final int AUTO_DELETE_MSG_INFO =13; // 删除群发触发消息
     private static final int AUTO_CLICK_ME =10; // 点击"我"
     private static final int AUTO_CLICK_SETTINGS =11; // 点击"设置"
-    private static final int AUTO_LONG_CLICK_MSG_INFO =12; // 长按群发触发消息
-    private static final int AUTO_DELETE_MSG_INFO =13; // 长按群发触发消息
     private static final int AUTO_CLICK_COMMON =14; // 点击通用
     private static final int AUTO_CLICK_FEATURE =15; // 点击功能
-    private static final int AUTO_CLICK_SEND_MSG =16; // 点击群发助手
+    private static final int AUTO_CLICK_MSG_HELPER =16; // 点击群发助手
+    private static final int AUTO_CLICK_START_MSG =17; // 点击开始群发
+    private static final int AUTO_CLICK_NEW_MSG =18; // 新建群发
+    private static final int AUTO_CLICK_CHOOSE_ALL = 19;// 全选
+    private static final int AUTO_CLICK_NEXT = 20; // 下一步
+    private static final int AUTO_SET_MSG = 21; // 填写群发内容
+    private static final int AUTO_SEND_MSG = 22; // 群发消息
+
+    private static final int AUTO_BACK = 23; // 返回上级页面
+
+    // 自动通过好友验证
+    private boolean autoClickNotification = false; // 点击好友验证通知栏
+    private boolean autoBackAfterAddFriend = false; // 接受好友验证
+
+    private static final int AUTO_ADD_FRIEND =7; // 通过好友验证
+
+    // 发送微信群消息
+    private static final int AUTO_SEND_GROUP_MESSAGES =9; // 发群消息
+
+    private static final int AUTO_START_WECHAT =6; // 启动微信
 
     Handler delayHandler = new Handler(){
         @Override
@@ -117,6 +148,77 @@ public class ScanQRService extends AccessibilityService {
                     AccessibilityNodeInfo commonNode = (AccessibilityNodeInfo) msg.obj;
                     commonNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                     autoClickSettings = false;
+                    autoClickCommon = true;
+                    break;
+                case AUTO_CLICK_FEATURE:
+                    AccessibilityNodeInfo featureNode = (AccessibilityNodeInfo) msg.obj;
+                    featureNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoClickCommon = false;
+                    autoClickFeature = true;
+                    break;
+                case AUTO_CLICK_MSG_HELPER:
+                    AccessibilityNodeInfo helperNode = (AccessibilityNodeInfo) msg.obj;
+                    helperNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoClickFeature = false;
+                    autoClickMsgHelper = true;
+                    break;
+                case AUTO_CLICK_START_MSG:
+                    AccessibilityNodeInfo startNode = (AccessibilityNodeInfo) msg.obj;
+                    startNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoClickMsgHelper = false;
+                    autoClickStartMsg = true;
+                    break;
+                case AUTO_CLICK_NEW_MSG:
+                    AccessibilityNodeInfo newMsgNode = (AccessibilityNodeInfo) msg.obj;
+                    newMsgNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoClickStartMsg = false;
+                    autoClickNewMsg = true;
+                    break;
+                case AUTO_CLICK_CHOOSE_ALL:
+                    AccessibilityNodeInfo chooseAllNode = (AccessibilityNodeInfo) msg.obj;
+                    chooseAllNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoClickNewMsg = false;
+                    autoClickChooseAll = true;
+                    autoClickNext();
+                    break;
+                case AUTO_CLICK_NEXT:
+                    AccessibilityNodeInfo nextNode = (AccessibilityNodeInfo) msg.obj;
+                    nextNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoClickChooseAll = false;
+                    autoClickNext = true;
+                    break;
+                case AUTO_SET_MSG:
+                    AccessibilityNodeInfo setMsgNode = (AccessibilityNodeInfo) msg.obj;
+                    Log.i("xinye", "case AUTO_SET_MSG setMsgNode is "+setMsgNode);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        Bundle arguments = new Bundle();
+                        arguments.putCharSequence(AccessibilityNodeInfo
+                                .ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "测试消息");
+                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
+                    }else{
+                        ClipboardManager clipboard = (ClipboardManager)
+                                getApplicationContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                        ClipData clip = ClipData.newPlainText("text", "测试消息");
+                        clipboard.setPrimaryClip(clip);
+                        //焦点（setMsgNode是AccessibilityNodeInfo对象）
+                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+                        //粘贴进入内容
+                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_CLEAR_FOCUS);
+                    }
+                    autoClickNext = false;
+                    autoSetMsg = true;
+                    break;
+                case AUTO_SEND_MSG:
+                    AccessibilityNodeInfo sendNode = (AccessibilityNodeInfo) msg.obj;
+                    sendNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoSetMsg = false;
+                    autoSendMsg = true;
+                    break;
+                case AUTO_BACK:
+                    AccessibilityNodeInfo baackNode = (AccessibilityNodeInfo) msg.obj;
+                    baackNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    autoSendMsg = false;
                     break;
             }
             super.handleMessage(msg);
@@ -158,17 +260,18 @@ public class ScanQRService extends AccessibilityService {
             }
         }
         mAccessibilityNodeInfo = accessibilityEvent.getSource();
+        int eventType = accessibilityEvent.getEventType();
+        printLog(openLog,"xinye", "eventType: "+eventType);
+
         printLog(openLog,"xinye", ""+accessibilityEvent.getPackageName());
         printLog(openLog,"xinye", "accessibilityEvent.getContentDescription() is "+accessibilityEvent.getContentDescription());
-        if (mAccessibilityNodeInfo == null) {
+        if (mAccessibilityNodeInfo == null && eventType !=
+                AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
             printLog(openLog,"xinye", "mAccessibilityNodeInfo == null");
             printLog(openLog,"xinye", "=============== End onAccessibilityEvent ===============");
             return;
         }
-
-        int eventType = accessibilityEvent.getEventType();
         String eventText;
-        printLog(openLog,"xinye", "eventType: "+eventType);
         switch (eventType) {
             case AccessibilityEvent.TYPE_VIEW_CLICKED:
                 eventText = "TYPE_VIEW_CLICKED";
@@ -189,6 +292,13 @@ public class ScanQRService extends AccessibilityService {
 
                 deleteRecentMsgInfo(mAccessibilityNodeInfo);
                 autoClickMe(findMeButton());
+                autoClickCommon();
+                autoClickFeature();
+                autoClickMsgHelper();
+                autoClickStartMsg();
+                autoClickNewMsg();
+                autoClickChooseAll();
+                autoBackAfterSengMsg();
                 break;
             case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:
                 eventText = "TYPE_WINDOW_CONTENT_CHANGED";
@@ -207,8 +317,36 @@ public class ScanQRService extends AccessibilityService {
                     确认是网页版登陆确认窗口，准备点击登陆按钮
                  */
                 clickLoginWebWeChat();
+
+                autoClickSettings();
+                autoSetMsg();
+                autoSendMsg();
+                break;
+            case AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED:
+                printLog(openLog,"xinye", "TYPE_NOTIFICATION_STATE_CHANGED and accessibilityEvent is "+accessibilityEvent);
+                List<CharSequence> texts = accessibilityEvent.getText();
+                if (!texts.isEmpty()) {
+                    for (CharSequence text : texts) {
+                        String content = text.toString();
+                        Log.i("demo", "text:"+content);
+                        if (content.contains("请求添加你为朋友")) {
+                            //模拟打开通知栏消息
+                            if (accessibilityEvent.getParcelableData() != null
+                                    &&accessibilityEvent.getParcelableData() instanceof Notification) {
+                                Notification notification = (Notification) accessibilityEvent.getParcelableData();
+                                PendingIntent pendingIntent = notification.contentIntent;
+                                try {
+                                    pendingIntent.send();
+                                } catch (PendingIntent.CanceledException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }
+                }
                 break;
             default:
+                printLog(openLog,"xinye", "eventType is "+eventType);
                 break;
         }
         printLog(openLog,"xinye", "=============== End onAccessibilityEvent ===============");
@@ -281,7 +419,7 @@ public class ScanQRService extends AccessibilityService {
             for (AccessibilityNodeInfo msgNode : msgNodeInfos){
                 CharSequence text =  msgNode.getText();
                 if(text!=null && "开始准备群发消息".equalsIgnoreCase(text.toString())){
-                    Log.i("liuxin", "准备群发消息，先删除触发条件");
+                    Log.i("xinye", "准备群发消息，先删除触发条件");
                     List<AccessibilityNodeInfo> parentNodes = eventNodeInfo.findAccessibilityNodeInfosByViewId(
                             getResources().getString(R.string.message_list_item));
                     if(parentNodes!=null && parentNodes.size()>0){
@@ -411,8 +549,9 @@ public class ScanQRService extends AccessibilityService {
         AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
         if(rootNodeInfo==null)
             return null;
-        List<AccessibilityNodeInfo> nodes = rootNodeInfo.findAccessibilityNodeInfosByViewId(
-                getResources().getString(R.string.me_view));
+        List<AccessibilityNodeInfo> nodes = rootNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.me_view));
         if(nodes != null && nodes.size()>=4){
             return nodes.get(3);
         }
@@ -442,10 +581,10 @@ public class ScanQRService extends AccessibilityService {
 
     private void autoClickMe(AccessibilityNodeInfo me){
         if (me!=null && autoDeleteMsgInfo){
-            Log.i("liuxin", "autoClickMe start");
+            Log.i("xinye", "autoClickMe start");
             AccessibilityNodeInfo parentNode = me.getParent();
             if (parentNode!=null){
-                Log.i("liuxin", "parentNode!=null and preParentNode isClickable = "+parentNode.isClickable());
+                Log.i("xinye", "parentNode!=null and preParentNode isClickable = "+parentNode.isClickable());
                 Message deleteMsg = new Message();
                 deleteMsg.what = AUTO_CLICK_ME;
                 deleteMsg.obj = parentNode;
@@ -455,20 +594,251 @@ public class ScanQRService extends AccessibilityService {
     }
 
     private void autoClickSettings(){
+        Log.i("xinye", "enter autoClickSettings autoClickMe is "+autoClickMe);
+        if(!autoClickMe){
+            Log.i("xinye", "leave autoClickSettings");
+            return;
+        }
         List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId("android:id/title");
+                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.settings_view));
         if (nodeInfos!=null && nodeInfos.size()>0){
+            Log.i("xinye", "leave autoClickSettings nodeInfos!=null");
             for (AccessibilityNodeInfo nodeInfo : nodeInfos){
                 if ("设置".equals(nodeInfo.getText())){
-                    AccessibilityNodeInfo parentNode = nodeInfo.getParent();
-                    if (parentNode!=null){
-                        Message deleteMsg = new Message();
-                        deleteMsg.what = AUTO_CLICK_SETTINGS;
-                        deleteMsg.obj = parentNode;
-                        delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                    }
+                    Log.i("xinye", "leave autoClickSettings find settings");
+                    AccessibilityNodeInfo parentNode;
+                    do {
+                        parentNode  = nodeInfo.getParent();
+                    }while (parentNode!=null && !parentNode.isClickable());
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_SETTINGS;
+                    deleteMsg.obj = parentNode;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
                 }
             }
+        }
+    }
+
+    private void autoClickCommon(){
+        if(!autoClickSettings)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.common_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("通用".equals(nodeInfo.getText())){
+                    AccessibilityNodeInfo parentNode;
+                    do {
+                        parentNode  = nodeInfo.getParent();
+                    }while (parentNode!=null && !parentNode.isClickable());
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_COMMON;
+                    deleteMsg.obj = parentNode;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private void autoClickFeature(){
+        if(!autoClickCommon)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.feature_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("功能".equals(nodeInfo.getText())){
+                    AccessibilityNodeInfo parentNode;
+                    do {
+                        parentNode  = nodeInfo.getParent();
+                    }while (parentNode!=null && !parentNode.isClickable());
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_FEATURE;
+                    deleteMsg.obj = parentNode;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private void autoClickMsgHelper(){
+        if(!autoClickFeature)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.msg_helper_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("群发助手".equals(nodeInfo.getText())){
+                    AccessibilityNodeInfo parentNode;
+                    do {
+                        parentNode  = nodeInfo.getParent();
+                    }while (parentNode!=null && !parentNode.isClickable());
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_MSG_HELPER;
+                    deleteMsg.obj = parentNode;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private void autoClickStartMsg(){
+        if(!autoClickMsgHelper)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.start_msg_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("开始群发".equals(nodeInfo.getText())){
+                    AccessibilityNodeInfo parentNode;
+                    do {
+                        parentNode  = nodeInfo.getParent();
+                    }while (parentNode!=null && !parentNode.isClickable());
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_START_MSG;
+                    deleteMsg.obj = parentNode;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private void autoClickNewMsg(){
+        if(!autoClickStartMsg)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByText("新建群发");
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("新建群发".equals(nodeInfo.getText())){
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_NEW_MSG;
+                    deleteMsg.obj = nodeInfo;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private void autoClickChooseAll(){
+        if(!autoClickNewMsg)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.choose_all_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("全选".equals(nodeInfo.getText())){
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_CLICK_CHOOSE_ALL;
+                    deleteMsg.obj = nodeInfo;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private AccessibilityNodeInfo findNextButton(){
+        AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
+        if(rootNodeInfo==null)
+            return null;
+        List<AccessibilityNodeInfo> nodeInfos = rootNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.next_view));
+        if(nodeInfos != null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                CharSequence text = nodeInfo.getText();
+                if (text!=null&&text.toString().contains("下一步")){
+                    return nodeInfo;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void autoClickNext(){
+        Log.i("xinye", "enter autoClickNext autoClickChooseAll is "+autoClickChooseAll);
+        if(!autoClickChooseAll)
+            return;
+        AccessibilityNodeInfo nextNode = findNextButton();
+        if (nextNode!=null){
+            Log.i("xinye", "enter autoClickNext nextNode!=null");
+            Message deleteMsg = new Message();
+            deleteMsg.what = AUTO_CLICK_NEXT;
+            deleteMsg.obj = nextNode;
+            delayHandler.sendMessageDelayed(deleteMsg, 1000);
+        }
+    }
+
+    private void autoSetMsg(){
+        Log.i("xinye", "enter autoSetMsg autoClickNext is "+autoClickNext);
+        if(!autoClickNext)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.edit_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            Log.i("xinye", "autoSetMsg nodeInfos!=null");
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                Log.i("xinye", "autoSetMsg nodeInfo.getClassName() is "+nodeInfo.getClassName());
+                if ("android.widget.EditText".equals(nodeInfo.getClassName())){
+                    Log.i("xinye", "autoSetMsg ready AUTO_SET_MSG");
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_SET_MSG;
+                    deleteMsg.obj = nodeInfo;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+        Log.i("xinye", "leave autoSetMsg autoClickNext is "+autoClickNext);
+    }
+
+    private void autoSendMsg(){
+        if(!autoSetMsg)
+            return;
+        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.send_view));
+        if (nodeInfos!=null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                if ("发送".equals(nodeInfo.getText())){
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_SEND_MSG;
+                    deleteMsg.obj = nodeInfo;
+                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                }
+            }
+        }
+    }
+
+    private AccessibilityNodeInfo findBackButton(){
+        AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
+        if(rootNodeInfo==null)
+            return null;
+        List<AccessibilityNodeInfo> nodeInfos = rootNodeInfo.
+                findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.back_view));
+        if(nodeInfos != null && nodeInfos.size()>0){
+            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
+                CharSequence text = nodeInfo.getContentDescription();
+                if (text!=null&&text.toString().equals("返回")){
+                    return nodeInfo.getParent();
+                }
+            }
+        }
+        return null;
+    }
+
+    private void autoBackAfterSengMsg(){
+        if(!autoSendMsg)
+            return;
+        AccessibilityNodeInfo backNode = findBackButton();
+        if(backNode!=null){
+            Message deleteMsg = new Message();
+            deleteMsg.what = AUTO_BACK;
+            deleteMsg.obj = backNode;
+            delayHandler.sendMessageDelayed(deleteMsg, 1000);
         }
     }
 

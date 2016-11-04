@@ -15,7 +15,7 @@ android {
         debug {
             minifyEnabled true // 是否混淆
             shrinkResources true // 是否去除无效的资源文件
-            proguardFiles getDefaultProguardFile('proguard-android.txt'),'debug-proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android.txt'),'proguard-rules.pro'
         }
         release {
             minifyEnabled true
