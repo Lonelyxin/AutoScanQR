@@ -30,4 +30,8 @@
     <string name="edit_view">com.tencent.mm:id/a2a</string>
     <string name="send_view">com.tencent.mm:id/a2g</string>
     <string name="back_view">com.tencent.mm:id/gd</string>
+    <string name="accept_view">com.tencent.mm:id/as6</string>
+    <string name="accepted_view">com.tencent.mm:id/as8</string>
+    <string name="delete_accepted_view">com.tencent.mm:id/et</string>
+    <string name="accepted_item">com.tencent.mm:id/as2</string>
 </resources>

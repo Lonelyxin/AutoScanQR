@@ -4,233 +4,201 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.Notification;
 import android.app.PendingIntent;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ResolveInfo;
-import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ScanQRService extends AccessibilityService {
 
-    private AccessibilityNodeInfo mAccessibilityNodeInfo = null;
-    private CharSequence preClickDes;
-    private boolean openLog = true;
+    private AccessibilityNodeInfo accessibilityNodeInfo;
+    private static final int delayTime = 1000;
 
-    // 自动扫码登录微信网页版
-    private boolean gotLoginInfo = false;// 获取登录触发消息
-    private boolean autoDeleteLoginInfo = false;// 删除触发登陆消息
-    private boolean autoClickFunctionButton = false;// 点击更多功能"+"
-    private boolean autoClickScanQR = false;// 点击 扫一扫
+    private boolean isFriendTaskDoing = false;
+    private boolean isScanQrTaskDoing = false;
+    private boolean isSendMsgTaskDoing = false;
 
-    private static final int AUTO_LONG_CLICK_LOGIN_INFO = 1; // 长按登录触发消息
-    private static final int AUTO_DELETE_LOGIN_INFO = 2; // 删除登陆触发信息
-    private static final int AUTO_CLICK_MORE_FUNCTION_BUTTON =3; // 点击"更多功能"
-    private static final int AUTO_CLICK_SCAN_QR =4; // 点击"扫一扫"
-    private static final int AUTO_CLICK_LOGIN =5; // 点击扫码后的"登录"按钮
+    private boolean longClickItem = false;
+    private boolean clickDeleteView = false;
 
-    //自动群发消息
-    private boolean gotSendMsgInfo = false;// 获取群发触发消息
-    private boolean autoDeleteMsgInfo = false;// 删除群发触发消息
-    private boolean autoClickMe = false;// 点击我
-    private boolean autoClickSettings = false;// 点击设置
-    private boolean autoClickCommon = false; // 点击通用
-    private boolean autoClickFeature = false;// 点击功能
-    private boolean autoClickMsgHelper = false;// 点击群发助手
-    private boolean autoClickStartMsg = false;// 点击开始群发
-    private boolean autoClickNewMsg = false;//点击新建群发
-    private boolean autoClickChooseAll = false;//点击全选
-    private boolean autoClickNext = false;//点击下一步
-    private boolean autoSetMsg = false;//填写群发内容
-    private boolean autoSendMsg = false;//点击发送
+    private boolean clickMoreFunctionView = false;
+    private boolean clickScanView = false;
+    private boolean clickLoginView = false;
 
-    private static final int AUTO_LONG_CLICK_MSG_INFO =12; // 长按群发触发消息
-    private static final int AUTO_DELETE_MSG_INFO =13; // 删除群发触发消息
-    private static final int AUTO_CLICK_ME =10; // 点击"我"
-    private static final int AUTO_CLICK_SETTINGS =11; // 点击"设置"
-    private static final int AUTO_CLICK_COMMON =14; // 点击通用
-    private static final int AUTO_CLICK_FEATURE =15; // 点击功能
-    private static final int AUTO_CLICK_MSG_HELPER =16; // 点击群发助手
-    private static final int AUTO_CLICK_START_MSG =17; // 点击开始群发
-    private static final int AUTO_CLICK_NEW_MSG =18; // 新建群发
-    private static final int AUTO_CLICK_CHOOSE_ALL = 19;// 全选
-    private static final int AUTO_CLICK_NEXT = 20; // 下一步
-    private static final int AUTO_SET_MSG = 21; // 填写群发内容
-    private static final int AUTO_SEND_MSG = 22; // 群发消息
+    private boolean clickNotification = false;
+    private boolean clickAcceptView = false;
+    private boolean longClickAccpetedItem = false;
+    private boolean clickBackFromFriendInfo = false;
+    private boolean clickBackFromNewFriend = false;
 
-    private static final int AUTO_BACK = 23; // 返回上级页面
+    private boolean clickMeView = false;
+    private boolean clickSettingsView = false;
+    private boolean clickCommonView = false;
+    private boolean clickFeatureView = false;
+    private boolean clickSendHelperView = false;
+    private boolean clickStartSendView = false;
+    private boolean clickNewSendView = false;
+    private boolean clickSelectAll = false;
+    private boolean clickNextView = false;
+    private boolean setMessage = false;
+    private boolean clickSendView = false;
+    private boolean clickBackFromMsgHelper = false;
 
-    // 自动通过好友验证
-    private boolean autoClickNotification = false; // 点击好友验证通知栏
-    private boolean autoBackAfterAddFriend = false; // 接受好友验证
+    private static final int START_NEXT_TASK = 0;
 
-    private static final int AUTO_ADD_FRIEND =7; // 通过好友验证
+    private static final int AUTO_LONG_CLICK_ITEM = 1;
+    private static final int AUTO_DELETE_ITEM = 2;
 
-    // 发送微信群消息
-    private static final int AUTO_SEND_GROUP_MESSAGES =9; // 发群消息
+    private static final int AUTO_CLICK_MORE_FUNCTION_VIEW = 3;
+    private static final int AUTO_CLICK_SCAN_VIEW = 4;
+    private static final int AUTO_CLICK_LOGIN_VIEW = 5;
 
-    private static final int AUTO_START_WECHAT =6; // 启动微信
+    private static final int AUTO_CLICK_ACCEPT_VIEW = 6;
+    private static final int AUTO_CLICK_BACK_FROM_FRIEND_INFO = 7;
+    private static final int AUTO_LONG_CLICK_ACCEPTED_ITEM = 8;
+    private static final int AUTO_CLICK_DELETE_ACCEPTED_VIEW = 9;
+    private static final int AUTO_CLICK_BACK_FROM_NEW_FRIEND = 10;
 
-    Handler delayHandler = new Handler(){
+    private static final int TASK_SCAN_QR = 40;
+    private static final int TASK_NEW_FRIEND = 41;
+    private static final int TASK_SEND_MESSAGE = 42;
+    private static final int AUTO_START_WECHAT = 50;
+
+    private List<Message> msgList = new ArrayList<>();
+
+    private Handler taskHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
+            super.handleMessage(msg);
             switch (msg.what){
-                case AUTO_LONG_CLICK_LOGIN_INFO:
-                    AccessibilityNodeInfo parentNode = (AccessibilityNodeInfo) msg.obj;
-                    parentNode.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
-                    gotLoginInfo = true;
+                case START_NEXT_TASK:
+                    if(msgList!=null&&msgList.size()>0){
+                        Message taskMessage = msgList.get(0);
+                        switch (taskMessage.what){
+                            case TASK_SCAN_QR:
+                                longClickConditionItem(
+                                        (AccessibilityNodeInfo) taskMessage.obj, "芝麻开门");
+                                break;
+                            case TASK_NEW_FRIEND:
+//                                longClickConditionItem(
+//                                        (AccessibilityNodeInfo) taskMessage.obj, "开始准备群发消息");
+                                break;
+                            case TASK_SEND_MESSAGE:
+                                chooseTaskToDoInNotification((AccessibilityEvent) taskMessage.obj);
+                                break;
+                        }
+                        msgList.remove(0);
+                    }
                     break;
-                case AUTO_DELETE_LOGIN_INFO:
-                    AccessibilityNodeInfo deleteInfoNode = (AccessibilityNodeInfo) msg.obj;
-                    deleteInfoNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    gotLoginInfo = false;
-                    autoDeleteLoginInfo = true;
+                case AUTO_LONG_CLICK_ITEM:
+                    AccessibilityNodeInfo itemNode = (AccessibilityNodeInfo) msg.obj;
+                    longClickItem = itemNode.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
                     break;
-                case AUTO_CLICK_MORE_FUNCTION_BUTTON:
-                    printLog(openLog,"xinye", "clickMoreFunction performAction click");
-                    AccessibilityNodeInfo functionInfoNode = (AccessibilityNodeInfo) msg.obj;
-                    functionInfoNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoDeleteLoginInfo = false;
-                    autoClickFunctionButton = true;
+                case AUTO_DELETE_ITEM:
+                    AccessibilityNodeInfo deleteNode = (AccessibilityNodeInfo) msg.obj;
+                    if(deleteNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        longClickItem = false;
+                        clickDeleteView = true;
+                    }else{
+                        longClickItem = true;
+                        clickDeleteView = false;
+                    }
                     break;
-                case AUTO_CLICK_SCAN_QR:
+                case AUTO_CLICK_MORE_FUNCTION_VIEW:
+                    AccessibilityNodeInfo moreNode = (AccessibilityNodeInfo) msg.obj;
+                    if(moreNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        clickDeleteView = false;
+                        clickMoreFunctionView = true;
+                    }else{
+                        clickDeleteView = true;
+                        clickMoreFunctionView = false;
+                    }
+                    break;
+                case AUTO_CLICK_SCAN_VIEW:
                     AccessibilityNodeInfo scanNode = (AccessibilityNodeInfo) msg.obj;
-                    scanNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    preClickDes = null;
-                    autoClickFunctionButton = false;
-                    autoClickScanQR = true;
+                    if(scanNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        clickMoreFunctionView = false;
+                        clickScanView = true;
+                    }else{
+                        clickMoreFunctionView = true;
+                        clickScanView = false;
+                    }
                     break;
-                case AUTO_CLICK_LOGIN:
+                case AUTO_CLICK_LOGIN_VIEW:
                     AccessibilityNodeInfo loginNode = (AccessibilityNodeInfo) msg.obj;
-                    loginNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickScanQR = false;
+                    if(loginNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        clickScanView = false;
+                        clickLoginView = true;
+                    }else{
+                        clickScanView = true;
+                        clickLoginView = false;
+                    }
                     break;
+                case AUTO_CLICK_ACCEPT_VIEW:
+                    AccessibilityNodeInfo acceptNode = (AccessibilityNodeInfo) msg.obj;
+                    if(acceptNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        clickNotification = false;
+                        clickAcceptView = true;
+                    }else{
+                        clickNotification = true;
+                        clickAcceptView = false;
+                    }
+                    break;
+                case AUTO_CLICK_BACK_FROM_FRIEND_INFO:
+                    AccessibilityNodeInfo backNodeInFriendInfo = (AccessibilityNodeInfo) msg.obj;
+                    if(backNodeInFriendInfo.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        clickAcceptView = false;
+                        clickBackFromFriendInfo = true;
+                    }else{
+                        clickAcceptView = true;
+                        clickBackFromFriendInfo = false;
+                    }
+                    break;
+                case AUTO_LONG_CLICK_ACCEPTED_ITEM:
+                    AccessibilityNodeInfo longAcceptedItemNode = (AccessibilityNodeInfo) msg.obj;
+                    longClickAccpetedItem = longAcceptedItemNode.performAction(
+                            AccessibilityNodeInfo.ACTION_LONG_CLICK);
+                    break;
+                case AUTO_CLICK_DELETE_ACCEPTED_VIEW:
+                    AccessibilityNodeInfo deleteAcceptedItemNode = (AccessibilityNodeInfo) msg.obj;
+                    longClickAccpetedItem = !deleteAcceptedItemNode.performAction(
+                            AccessibilityNodeInfo.ACTION_CLICK);
+                    break;
+                case AUTO_CLICK_BACK_FROM_NEW_FRIEND:
+                    AccessibilityNodeInfo backNodeInNewFriend = (AccessibilityNodeInfo) msg.obj;
+                    if(backNodeInNewFriend.performAction(AccessibilityNodeInfo.ACTION_CLICK)){
+                        clickBackFromFriendInfo = false;
+                        clickBackFromNewFriend = true;
+                    }else{
+                        clickBackFromFriendInfo = true;
+                        clickBackFromNewFriend = false;
+                    }
+                    break;
+
+
                 case AUTO_START_WECHAT:
                     Intent intent = new Intent();
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    ComponentName componentName = new ComponentName("com.tencent.mm","com.tencent.mm.ui.LauncherUI");
+                    ComponentName componentName = new ComponentName(
+                            "com.tencent.mm","com.tencent.mm.ui.LauncherUI");
                     intent.setComponent(componentName);
                     startActivity(intent);
                     break;
-                case AUTO_LONG_CLICK_MSG_INFO:
-                    AccessibilityNodeInfo sendMsgNode = (AccessibilityNodeInfo) msg.obj;
-                    sendMsgNode.performAction(AccessibilityNodeInfo.ACTION_LONG_CLICK);
-                    gotSendMsgInfo = true;
-                    break;
-                case AUTO_DELETE_MSG_INFO:
-                    AccessibilityNodeInfo deleteMsgNode = (AccessibilityNodeInfo) msg.obj;
-                    deleteMsgNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    gotSendMsgInfo = false;
-                    autoDeleteMsgInfo = true;
-                    break;
-                case AUTO_CLICK_ME:
-                    AccessibilityNodeInfo meNode = (AccessibilityNodeInfo) msg.obj;
-                    meNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoDeleteMsgInfo = false;
-                    autoClickMe = true;
-                    break;
-                case AUTO_CLICK_SETTINGS:
-                    AccessibilityNodeInfo settingsNode = (AccessibilityNodeInfo) msg.obj;
-                    settingsNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickMe = false;
-                    autoClickSettings = true;
-                    break;
-                case AUTO_CLICK_COMMON:
-                    AccessibilityNodeInfo commonNode = (AccessibilityNodeInfo) msg.obj;
-                    commonNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickSettings = false;
-                    autoClickCommon = true;
-                    break;
-                case AUTO_CLICK_FEATURE:
-                    AccessibilityNodeInfo featureNode = (AccessibilityNodeInfo) msg.obj;
-                    featureNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickCommon = false;
-                    autoClickFeature = true;
-                    break;
-                case AUTO_CLICK_MSG_HELPER:
-                    AccessibilityNodeInfo helperNode = (AccessibilityNodeInfo) msg.obj;
-                    helperNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickFeature = false;
-                    autoClickMsgHelper = true;
-                    break;
-                case AUTO_CLICK_START_MSG:
-                    AccessibilityNodeInfo startNode = (AccessibilityNodeInfo) msg.obj;
-                    startNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickMsgHelper = false;
-                    autoClickStartMsg = true;
-                    break;
-                case AUTO_CLICK_NEW_MSG:
-                    AccessibilityNodeInfo newMsgNode = (AccessibilityNodeInfo) msg.obj;
-                    newMsgNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickStartMsg = false;
-                    autoClickNewMsg = true;
-                    break;
-                case AUTO_CLICK_CHOOSE_ALL:
-                    AccessibilityNodeInfo chooseAllNode = (AccessibilityNodeInfo) msg.obj;
-                    chooseAllNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickNewMsg = false;
-                    autoClickChooseAll = true;
-                    autoClickNext();
-                    break;
-                case AUTO_CLICK_NEXT:
-                    AccessibilityNodeInfo nextNode = (AccessibilityNodeInfo) msg.obj;
-                    nextNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoClickChooseAll = false;
-                    autoClickNext = true;
-                    break;
-                case AUTO_SET_MSG:
-                    AccessibilityNodeInfo setMsgNode = (AccessibilityNodeInfo) msg.obj;
-                    Log.i("xinye", "case AUTO_SET_MSG setMsgNode is "+setMsgNode);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                        Bundle arguments = new Bundle();
-                        arguments.putCharSequence(AccessibilityNodeInfo
-                                .ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "测试消息");
-                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
-                    }else{
-                        ClipboardManager clipboard = (ClipboardManager)
-                                getApplicationContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                        ClipData clip = ClipData.newPlainText("text", "测试消息");
-                        clipboard.setPrimaryClip(clip);
-                        //焦点（setMsgNode是AccessibilityNodeInfo对象）
-                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
-                        //粘贴进入内容
-                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_PASTE);
-                        setMsgNode.performAction(AccessibilityNodeInfo.ACTION_CLEAR_FOCUS);
-                    }
-                    autoClickNext = false;
-                    autoSetMsg = true;
-                    break;
-                case AUTO_SEND_MSG:
-                    AccessibilityNodeInfo sendNode = (AccessibilityNodeInfo) msg.obj;
-                    sendNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoSetMsg = false;
-                    autoSendMsg = true;
-                    break;
-                case AUTO_BACK:
-                    AccessibilityNodeInfo baackNode = (AccessibilityNodeInfo) msg.obj;
-                    baackNode.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    autoSendMsg = false;
-                    break;
             }
-            super.handleMessage(msg);
         }
     };
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        Log.i("xinye", "onServiceConnected");
-        String launcherName = getLauncherPackageName(getApplicationContext());
-        Log.i("xinye", "launcherName is "+launcherName);
+        String launcherName = Utils.getLauncherPackageName(getApplicationContext());
         if(launcherName!=null){
             AccessibilityServiceInfo info = getServiceInfo();
             info.packageNames = new String[]{"com.tencent.mm", launcherName};
@@ -239,117 +207,68 @@ public class ScanQRService extends AccessibilityService {
     }
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
-
-        printLog(openLog,"xinye", "=============== start onAccessibilityEvent ===============");
-        /*发生event事件变化的不是微信时，需要判断是不是launcher主页面，以确定微信是否依旧在前台*/
-        if(!"com.tencent.mm".equals(accessibilityEvent.getPackageName())){
-            printLog(openLog,"xinye", "PackageName is "+accessibilityEvent.getPackageName());
-            /*回到launcher主页面时，会收到TYPE_WINDOW_STATE_CHANGED， 可根据该事件判断当前手机处于launcher界面*/
-            if(accessibilityEvent.getEventType()!= AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED){
-                printLog(openLog,"xinye", "=============== End onAccessibilityEvent ===============");
-                return;
-            }else{
-                printLog(openLog,"xinye", "EventType is TYPE_WINDOW_STATE_CHANGED");
-                printLog(openLog,"xinye", "Ready start com.tencent.mm");
-                Message deleteMsg = new Message();
-                deleteMsg.what = AUTO_START_WECHAT;
-                delayHandler.sendMessageDelayed(deleteMsg, 1000);// 延时1秒执行
-                printLog(openLog,"xinye", "=============== End onAccessibilityEvent ===============");
-                return;
-            }
-        }
-        mAccessibilityNodeInfo = accessibilityEvent.getSource();
-        int eventType = accessibilityEvent.getEventType();
-        printLog(openLog,"xinye", "eventType: "+eventType);
-
-        printLog(openLog,"xinye", ""+accessibilityEvent.getPackageName());
-        printLog(openLog,"xinye", "accessibilityEvent.getContentDescription() is "+accessibilityEvent.getContentDescription());
-        if (mAccessibilityNodeInfo == null && eventType !=
-                AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
-            printLog(openLog,"xinye", "mAccessibilityNodeInfo == null");
-            printLog(openLog,"xinye", "=============== End onAccessibilityEvent ===============");
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        checkWeChatIsForeground(event);
+        accessibilityNodeInfo = event.getSource();
+        int eventType = event.getEventType();
+        if(accessibilityNodeInfo == null && eventType !=
+                AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED)
             return;
-        }
-        String eventText;
-        switch (eventType) {
-            case AccessibilityEvent.TYPE_VIEW_CLICKED:
-                eventText = "TYPE_VIEW_CLICKED";
-                printLog(openLog,"xinye", "eventText: "+eventText);
-                preClickDes = accessibilityEvent.getContentDescription();
-                break;
-            case AccessibilityEvent.TYPE_VIEW_LONG_CLICKED:
-                eventText = "TYPE_VIEW_LONG_CLICKED";
-                printLog(openLog,"xinye", "eventText: "+eventText);
-                break;
+        switch (eventType){
             case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED:
-                eventText = "TYPE_WINDOW_STATE_CHANGED";
-                printLog(openLog,"xinye", "eventText: "+eventText);
-                // 模拟点击"删除该聊天"
-                deleteRecentLoginInfo(mAccessibilityNodeInfo);
-                // 窗口状态发生变化，判断是否是点击了"+"更多功能按钮，往下模拟扫一扫点击功能
-                clickScanButton();
-
-                deleteRecentMsgInfo(mAccessibilityNodeInfo);
-                autoClickMe(findMeButton());
-                autoClickCommon();
-                autoClickFeature();
-                autoClickMsgHelper();
-                autoClickStartMsg();
-                autoClickNewMsg();
-                autoClickChooseAll();
-                autoBackAfterSengMsg();
-                break;
-            case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:
-                eventText = "TYPE_WINDOW_CONTENT_CHANGED";
-                printLog(openLog,"xinye", "eventText: "+eventText);
-                printLog(openLog,"xinye", "mAccessibilityNodeInfo getClassName: "+mAccessibilityNodeInfo.getClassName());
-                /*收到消息后，会进入window_content_changed,
-                    找到文本消息的view,在微信中是一个listview集合的子view，
-                    有许多个，需要筛选出目标子view, 删除该信息
-                 */
-                startClickActionByInfo(mAccessibilityNodeInfo);
-                /*随后模拟点击"+"更多功能
-                 */
-                clickMoreFunction(findMoreFunctionButton());
-                /*扫码完成后，同样会进入该case，窗口内容绘制
-                    找到可辨识的内容"网页版微信登录确认"、"登录"、"取消登录"
-                    确认是网页版登陆确认窗口，准备点击登陆按钮
-                 */
-                clickLoginWebWeChat();
-
-                autoClickSettings();
-                autoSetMsg();
-                autoSendMsg();
-                break;
-            case AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED:
-                printLog(openLog,"xinye", "TYPE_NOTIFICATION_STATE_CHANGED and accessibilityEvent is "+accessibilityEvent);
-                List<CharSequence> texts = accessibilityEvent.getText();
-                if (!texts.isEmpty()) {
-                    for (CharSequence text : texts) {
-                        String content = text.toString();
-                        Log.i("demo", "text:"+content);
-                        if (content.contains("请求添加你为朋友")) {
-                            //模拟打开通知栏消息
-                            if (accessibilityEvent.getParcelableData() != null
-                                    &&accessibilityEvent.getParcelableData() instanceof Notification) {
-                                Notification notification = (Notification) accessibilityEvent.getParcelableData();
-                                PendingIntent pendingIntent = notification.contentIntent;
-                                try {
-                                    pendingIntent.send();
-                                } catch (PendingIntent.CanceledException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
+                Log.i("liuxin", "TYPE_WINDOW_STATE_CHANGED");
+                if(isScanQrTaskDoing){
+                    if(clickLoginView){
+                        isScanQrTaskDoing = false;
+                        clickLoginView = false;
+                        Log.i("liuxin", "扫码工作结束，准备开始下一项任务");
+                        Message message = new Message();
+                        message.what = START_NEXT_TASK;
+                        taskHandler.sendMessageDelayed(message, 500);
+                        return;
+                    }
+                    // 长按item后点击删除该聊天
+                    Log.i("liuxin", "扫码工作，长按item后点击删除该聊天");
+                    clickDeleteView();
+                    // 点击更多功能按钮+
+                    Log.i("liuxin", "扫码工作，点击更多功能按钮");
+                    clickMoreFunctionView();
+                    // 点击扫一扫按钮
+                    Log.i("liuxin", "扫码工作，点击扫一扫按钮");
+                    clickScanView();
+                    // 点击登录按钮
+                    Log.i("liuxin", "扫码工作，点击登录按钮");
+                    clickLoginView();
+                }else if(isFriendTaskDoing){
+                    if(clickBackFromNewFriend){
+                        isFriendTaskDoing = false;
+                        clickBackFromNewFriend = false;
+                        return;
+                    }
+                    // 通过Notification进入新的好友请求页面，点击接受按钮
+                    clickAcceptView();
+                    // 点击接受后会进入详细资料页面，在这里点击返回，回到好友请求页面
+                    clickBackFromFriendInfo();
+                    // 点击删除已接受item的选项
+                    deleteAcceptedItem();
+                }else if(isSendMsgTaskDoing){
+                    if(clickBackFromMsgHelper){
+                        clickBackFromMsgHelper = false;
+                        isSendMsgTaskDoing = false;
+                        return;
                     }
                 }
                 break;
-            default:
-                printLog(openLog,"xinye", "eventType is "+eventType);
+            case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:
+                Log.i("liuxin", "TYPE_WINDOW_CONTENT_CHANGED");
+                longClickConditionItem(accessibilityNodeInfo, "芝麻开门");
+//                longClickConditionItem("开始准备群发消息");
+                break;
+            case AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED:
+                Log.i("liuxin", "TYPE_NOTIFICATION_STATE_CHANGED");
+                chooseTaskToDoInNotification(event);
                 break;
         }
-        printLog(openLog,"xinye", "=============== End onAccessibilityEvent ===============");
     }
 
     @Override
@@ -358,154 +277,205 @@ public class ScanQRService extends AccessibilityService {
     }
 
     /**
-     * 自动删除最新受到的触发信息
-     * @param eventNodeInfo event节点信息
+     * 获取触发条件信息所在的item
+     * @param eventNodeInfo 节点信息
+     * @param condition 触发条件
+     * @return item节点
      */
-    private void deleteRecentLoginInfo(AccessibilityNodeInfo eventNodeInfo){
-        // 首先需要得到自动扫码登陆的触发信息, 否则不自动执行删除操作, 避免手动操作和自动操作相互干扰
-        if(!gotLoginInfo){
-            return;
-        }
-        List<AccessibilityNodeInfo> delNodeInfos =
-                eventNodeInfo.findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.delete_message_view));
-        // 在长按后选项中拿到"删除该聊天"的节点，然后执行删除信息操作
-        if(delNodeInfos != null && delNodeInfos.size()>0) {
-            for (AccessibilityNodeInfo delNode : delNodeInfos) {
-                if ("删除该聊天".equals(delNode.getText())) {
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_DELETE_LOGIN_INFO;
-                    deleteMsg.obj = delNode.getParent();
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);// 延时1秒执行
-                }
-            }
-        }
-    }
-
-    /**
-     * 找到"+"更多功能按钮
-     * @return "+"更多功能按钮
-     */
-    private AccessibilityNodeInfo findMoreFunctionButton(){
-        AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
-        if(rootNodeInfo==null)
+    private AccessibilityNodeInfo getTriggerCondition(
+            AccessibilityNodeInfo eventNodeInfo, String condition){
+        Log.i("liuxin", "====enter getTriggerCondition====");
+        if(TextUtils.isEmpty(condition))
             return null;
-        List<AccessibilityNodeInfo> nodes = rootNodeInfo.findAccessibilityNodeInfosByViewId(
-                getResources().getString(R.string.function_view));
-        if(nodes != null && nodes.size()>0){
-            AccessibilityNodeInfo functionNode = nodes.get(0);
-            if(functionNode!=null){
-                AccessibilityNodeInfo functionParentNode = functionNode.getParent();
-                if(functionParentNode!=null && functionParentNode.getContentDescription()!= null &&
-                        "更多功能按钮".equals(functionParentNode.getContentDescription())){
-                    return functionNode;
+        List<AccessibilityNodeInfo> msgNodeInfos =
+                eventNodeInfo.findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.message_textview));
+        Log.i("liuxin", "enter getTriggerCondition msgNodeInfos is "+msgNodeInfos);
+        if(msgNodeInfos!=null && msgNodeInfos.size()>0){
+            Log.i("liuxin", "getTriggerCondition msgNodeInfos!=null");
+            int index = 0;
+            for (AccessibilityNodeInfo msgNode : msgNodeInfos){
+                Log.i("liuxin", "getTriggerCondition condition is "+condition+
+                        " msgNode.getText() is"+msgNode.getText());
+                if(condition.equals(msgNode.getText().toString())){
+                    Log.i("liuxin", "getTriggerCondition condition.equals(msgNode.getText())");
+                    List<AccessibilityNodeInfo> parentNodes = eventNodeInfo.
+                            findAccessibilityNodeInfosByViewId(
+                                    getResources().getString(R.string.message_list_item));
+                    if(parentNodes!=null && parentNodes.size()>0){
+                        AccessibilityNodeInfo parentNode = parentNodes.get(index);
+                        if(parentNode!=null){
+                            return parentNode;
+                        }
+                    }
                 }
+                index ++;
             }
         }
         return null;
     }
 
     /**
-     * 收到扫码登陆的触发条件后，模拟长按点击聊天信息
-     * @param eventNodeInfo eventNodeInfo
+     * 长按主界面聊天列表的item，准备弹出删除按钮选项
      */
-    private void startClickActionByInfo(AccessibilityNodeInfo eventNodeInfo){
-        List<AccessibilityNodeInfo> msgNodeInfos =
-                eventNodeInfo.findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.message_textview));
-        printLog(openLog, "xinye", "startClickActionByInfo start");
-        if(msgNodeInfos!=null && msgNodeInfos.size()>0){
-            printLog(openLog, "xinye", "startClickActionByInfo msgNodeInfos!=null");
-            for (AccessibilityNodeInfo msgNode : msgNodeInfos){
-                CharSequence text =  msgNode.getText();
-                if(text!=null && "开始准备群发消息".equalsIgnoreCase(text.toString())){
-                    Log.i("xinye", "准备群发消息，先删除触发条件");
-                    List<AccessibilityNodeInfo> parentNodes = eventNodeInfo.findAccessibilityNodeInfosByViewId(
-                            getResources().getString(R.string.message_list_item));
-                    if(parentNodes!=null && parentNodes.size()>0){
-                        AccessibilityNodeInfo parentNode = parentNodes.get(0);
-                        if(parentNode!=null){
-                            Message msg = new Message();
-                            msg.what = AUTO_LONG_CLICK_MSG_INFO;
-                            msg.obj = parentNode;
-                            delayHandler.sendMessageDelayed(msg, 0);
-                        }
-                    }
-                }else if(text!=null && "芝麻开门".equalsIgnoreCase(text.toString())){
-                    List<AccessibilityNodeInfo> parentNodes = eventNodeInfo.findAccessibilityNodeInfosByViewId(
-                            getResources().getString(R.string.message_list_item));
-                    if(parentNodes!=null && parentNodes.size()>0){
-                        AccessibilityNodeInfo parentNode = parentNodes.get(0);
-                        if(parentNode!=null){
-                            Message msg = new Message();
-                            msg.what = AUTO_LONG_CLICK_LOGIN_INFO;
-                            msg.obj = parentNode;
-                            delayHandler.sendMessageDelayed(msg, 0);
-                        }
-                    }
+    private void longClickConditionItem(AccessibilityNodeInfo accessibilityNodeInfo, String condition) {
+        Log.i("liuxin", "longClickConditionItem, 触发条件聊天item is "+condition);
+        if(TextUtils.isEmpty(condition))
+            return;
+        chooseTaskInContentChanged(accessibilityNodeInfo, condition);
+    }
+
+    /**
+     * 当WINDOW CONTENT变化时，筛选触发条件信息，设置任务执行状态
+     * 只处理扫码任务和群发任务
+     * @param condition 触发条件信息
+     */
+    private void chooseTaskInContentChanged(AccessibilityNodeInfo accessibilityNodeInfo, String condition){
+        Log.i("liuxin", "====enter chooseTaskInContentChanged====");
+        if(TextUtils.isEmpty(condition))
+            return;
+        AccessibilityNodeInfo itemNode =
+                getTriggerCondition(accessibilityNodeInfo, condition);
+        if (itemNode == null)
+            return;
+        if(condition.equals("芝麻开门")){
+            if( isSendMsgTaskDoing || isFriendTaskDoing){
+                // 正在执行群发任务或者好友验证的任务
+                Log.i("liuxin", "====leave chooseTaskInContentChanged 其他任务正在执行，请等待扫码====");
+                addWaitTaskInMsgList(TASK_SCAN_QR, accessibilityNodeInfo);
+            }else if (isScanQrTaskDoing){
+                // 正在执行扫码任务，忽略此次重复任务要求。
+                // 本次任务完成后就登录成功，无需再次扫码。
+                // 如未成功，待下次请求发来时候再执行扫码任务。
+                Log.i("liuxin", "====leave chooseTaskInContentChanged 正在扫码，忽略本次请求====");
+            }else{
+                // 没有任何任务正在执行，则开始执行扫码任务
+                isScanQrTaskDoing = true;
+                Log.i("liuxin", "longClickConditionItem, 长按触发条件聊天item");
+                Message msg = new Message();
+                msg.what = AUTO_LONG_CLICK_ITEM;
+                msg.obj = itemNode;
+                taskHandler.sendMessageDelayed(msg, delayTime);
+                Log.i("liuxin", "====leave chooseTaskInContentChanged 开始扫码====");
+            }
+        }else if(condition.equals("开始准备群发消息")){
+            if( isScanQrTaskDoing || isFriendTaskDoing){
+                // 正在执行扫码任务或者好友验证的任务
+                // 将本次任务加入到消息队列中
+                addWaitTaskInMsgList(TASK_SEND_MESSAGE, accessibilityNodeInfo);
+            }else if (isSendMsgTaskDoing){
+                Log.i("liuxin", "====leave chooseTaskInContentChanged 正在群发====");
+                // 正在执行群发任务
+            }else{
+                // 没有任何任务正在执行，则开始执行群发任务
+                isSendMsgTaskDoing = true;
+                Log.i("liuxin", "longClickConditionItem, 长按触发条件聊天item");
+                Message msg = new Message();
+                msg.what = AUTO_LONG_CLICK_ITEM;
+                msg.obj = itemNode;
+                taskHandler.sendMessageDelayed(msg, delayTime);
+            }
+        }
+    }
+
+    private boolean haveTargetTaskMessage(int taskType){
+        if(msgList==null || msgList.size()<=0){
+            return false;
+        }else{
+            for (Message msg : msgList){
+                if(msg.what == taskType){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void addWaitTaskInMsgList(int taskType, Object taskObject){
+        if(!haveTargetTaskMessage(taskType)){
+            if(msgList == null){
+                msgList = new ArrayList<>();
+            }
+            Message sendMsg = new Message();
+            sendMsg.what = taskType;
+            sendMsg.obj = taskObject;
+            msgList.add(sendMsg);
+        }
+
+    }
+
+    /**
+     * 长按item弹出删除选项，点击删除该聊天，清除触发条件
+     */
+    private void clickDeleteView(){
+        if(!longClickItem)
+            return;
+        List<AccessibilityNodeInfo> delNodeInfos =
+                accessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.delete_message_view));
+        // 在长按后选项中拿到"删除该聊天"的节点，然后执行删除信息操作
+        if(delNodeInfos != null && delNodeInfos.size()>0) {
+            for (AccessibilityNodeInfo delNode : delNodeInfos) {
+                if ("删除该聊天".equals(delNode.getText().toString())) {
+                    Message deleteMsg = new Message();
+                    deleteMsg.what = AUTO_DELETE_ITEM;
+                    deleteMsg.obj = delNode.getParent();
+                    taskHandler.sendMessageDelayed(deleteMsg, delayTime);// 延时1秒执行
                 }
             }
         }
     }
 
     /**
-     * 模拟点击"+"更多功能按钮
-     * @param moreFunctionView "+"更多功能按钮
+     * 清除扫码触发条件后，点击更多功能按钮，准备启动扫一扫
      */
-    private void clickMoreFunction(AccessibilityNodeInfo moreFunctionView){
-        // 当能找到"+"按钮，并且自动执行过删除触发信息的操作，才能自动执行点击"+"的操作
-        // 避免手动点击"+"和自动点击的相互干扰
-        if(moreFunctionView != null && autoDeleteLoginInfo){
-            printLog(openLog,"xinye", "clickMoreFunction start");
-            // 去模拟点击微信的"+"按钮，打开更多功能列表，进而模拟点击扫一扫
-            Message deleteMsg = new Message();
-            deleteMsg.what = AUTO_CLICK_MORE_FUNCTION_BUTTON;
-            deleteMsg.obj = moreFunctionView.getParent();
-            delayHandler.sendMessageDelayed(deleteMsg, 0);
-        }
+    private void clickMoreFunctionView(){
+        if(!clickDeleteView)
+            return;
+        AccessibilityNodeInfo moreFunctionNode = findMoreFunctionView();
+        if(moreFunctionNode==null)
+            return;
+        Message deleteMsg = new Message();
+        deleteMsg.what = AUTO_CLICK_MORE_FUNCTION_VIEW;
+        deleteMsg.obj = moreFunctionNode.getParent();
+        taskHandler.sendMessageDelayed(deleteMsg, delayTime);
     }
 
     /**
-     * 点击扫一扫按钮，进入扫码页面
+     * 弹出更多功能选项后，点击扫一扫，启动扫码功能
      */
-    private void clickScanButton(){
-        // 上次操作不是自动执行点击"+"按钮， 那么就退出，不自动执行扫码按钮
-        if(!autoClickFunctionButton){
+    private void clickScanView(){
+        if(!clickMoreFunctionView){
             return;
         }
-        if(preClickDes != null && "更多功能按钮".equals(preClickDes)){
-            // 找到更多功能按钮列表， 根据id值"com.tencent.mm:id/e9"，遍历出目标按钮“扫一扫”
-            List<AccessibilityNodeInfo> functionNodeInfos =
-                    mAccessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
-                            getResources().getString(R.string.scan_view));
-            if(functionNodeInfos!=null && functionNodeInfos.size()>=3){
-                // 目前更多功能列表中，第三条Node就是“扫一扫”
-                AccessibilityNodeInfo scanNode = functionNodeInfos.get(2);
-                if(scanNode != null){
-                    // 发送延时一秒的消息，去模拟点击微信的"扫一扫"按钮，打开扫码页面
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_SCAN_QR;
-                    deleteMsg.obj = scanNode.getParent();
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
+        // 找到更多功能按钮列表， 根据id值，遍历出目标按钮“扫一扫”
+        List<AccessibilityNodeInfo> functionNodeInfos =
+                accessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
+                        getResources().getString(R.string.scan_view));
+        if(functionNodeInfos!=null && functionNodeInfos.size()>=3){
+            // 目前更多功能列表中，第三条Node就是“扫一扫”
+            AccessibilityNodeInfo scanNode = functionNodeInfos.get(2);
+            if(scanNode != null){
+                Message deleteMsg = new Message();
+                deleteMsg.what = AUTO_CLICK_SCAN_VIEW;
+                deleteMsg.obj = scanNode.getParent();
+                taskHandler.sendMessageDelayed(deleteMsg, delayTime);
             }
         }
     }
 
-    /**
-     * 点击网页版微信的确认登陆按钮， 登陆网页版微信
-     */
-    private void clickLoginWebWeChat(){
+
+    private void clickLoginView(){
         // 上次操作不是自动执行扫码按钮，就退出，不自动执行登录网页版微信
-        if(!autoClickScanQR){
+        if(!clickScanView){
             return;
         }
         List<AccessibilityNodeInfo> loginNodeInfos =
-                mAccessibilityNodeInfo.findAccessibilityNodeInfosByText("网页版微信登录确认");
+                accessibilityNodeInfo.findAccessibilityNodeInfosByText("网页版微信登录确认");
         if( loginNodeInfos == null || loginNodeInfos.size()<=0){
             return;
         }
-        loginNodeInfos = mAccessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
+        loginNodeInfos = accessibilityNodeInfo.findAccessibilityNodeInfosByViewId(
                 getResources().getString(R.string.login_view));
         if(loginNodeInfos!=null && loginNodeInfos.size()>0){
             // 一般情况下刚收的消息会被置顶，因此取list的第一条item
@@ -515,304 +485,253 @@ public class ScanQRService extends AccessibilityService {
                 if(text!=null && "登录".equalsIgnoreCase(text.toString())){
                     // 发送延时两秒消息，去模拟点击微信的"+"按钮，打开更多功能列表，进而模拟点击扫一扫
                     Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_LOGIN;
+                    deleteMsg.what = AUTO_CLICK_LOGIN_VIEW;
                     deleteMsg.obj = loginNode;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1500);
+                    taskHandler.sendMessageDelayed(deleteMsg, delayTime);
                 }
             }
         }
     }
 
-    private void printLog(boolean openLog, String tag, String logInfo){
-        if(openLog && null != tag && null != logInfo){
-            Log.i(tag, logInfo);
+    /**
+     * Notification收到微信消息时候，筛选触发条件信息，设置任务执行状态
+     * 只对好友请求做处理
+     * @param accessibilityEvent 辅助服务的event事件
+     */
+    private void chooseTaskToDoInNotification(AccessibilityEvent accessibilityEvent){
+        Log.i("liuxin", "====enter chooseTaskToDo====");
+        if(haveNotificationInfo(accessibilityEvent, "请求添加你为朋友")){
+            if( isScanQrTaskDoing || isSendMsgTaskDoing){
+                // 正在执行扫码任务或者群发消息的任务
+                addWaitTaskInMsgList(TASK_NEW_FRIEND, accessibilityEvent);
+            }else if (isFriendTaskDoing){
+                // 正在执行好友验证任务, 忽略此次任务请求
+                // 当前任务会在新的好友页面将所有未接受的好友均接受
+                // 因此，当好友验证任务正在执行的时候，重复任务请求发来时可以忽略
+                Log.i("liuxin", "====leave chooseTaskToDo 正在添加好友====");
+            }else{
+                // 没有任何任务正在执行，则开始执行好友验证任务
+                Log.i("liuxin", "====leave chooseTaskToDo 开始执行好友验证任务====");
+                openNotificaiton(accessibilityEvent);
+                isFriendTaskDoing = true;
+            }
         }
     }
 
-    private static String getLauncherPackageName(Context context) {
-        final Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_HOME);
-        final ResolveInfo res = context.getPackageManager().resolveActivity(intent, 0);
-        if (res.activityInfo == null) {
-            // should not happen. A home is always installed, isn't it?
-            return null;
+    /**
+     * 通知栏中是否有触发条件（包括触发扫码，触发自动添加好友、触发群发消息）
+     * @param accessibilityEvent 辅助服务的event事件
+     * @param info 触发内容
+     * @return 是否包含触发条件信息
+     */
+    private boolean haveNotificationInfo(AccessibilityEvent accessibilityEvent, String info){
+        Log.i("liuxin", "====enter haveNotificationInfo====");
+        List<CharSequence> texts = accessibilityEvent.getText();
+        if (!texts.isEmpty() || TextUtils.isEmpty(info)) {
+            for (CharSequence text : texts) {
+                MyLog.printLog("liuxin", "text is : "+text);
+                String content = text.toString();
+                if (content.contains(info)) {
+                    Log.i("liuxin", "====leave haveNotificationInfo====");
+                    return true;
+                }
+            }
         }
-        if (res.activityInfo.packageName.equals("android")) {
-            // 有多个桌面程序存在，且未指定默认项时；
-            return null;
-        } else {
-            return res.activityInfo.packageName;
+        Log.i("liuxin", "====leave haveNotificationInfo====");
+        return false;
+    }
+
+    /**
+     * 模拟打开通知栏消息, 仅用于添加好友验证
+     * @param accessibilityEvent 辅助服务的event事件
+     */
+    private void openNotificaiton(AccessibilityEvent accessibilityEvent){
+        if (accessibilityEvent.getParcelableData() != null
+                &&accessibilityEvent.getParcelableData() instanceof Notification) {
+            Notification notification = (Notification) accessibilityEvent.getParcelableData();
+            PendingIntent pendingIntent = notification.contentIntent;
+            try {
+                pendingIntent.send();
+                clickNotification = true;
+            } catch (PendingIntent.CanceledException e) {
+                e.printStackTrace();
+                clickNotification = false;
+            }
         }
     }
 
-    private AccessibilityNodeInfo findMeButton(){
-        AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
-        if(rootNodeInfo==null)
-            return null;
-        List<AccessibilityNodeInfo> nodes = rootNodeInfo.
-                findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.me_view));
-        if(nodes != null && nodes.size()>=4){
-            return nodes.get(3);
-        }
-        return null;
-    }
-
-    private void deleteRecentMsgInfo(AccessibilityNodeInfo eventNodeInfo){
-        // 首先需要得到自动扫码登陆的触发信息, 否则不自动执行删除操作, 避免手动操作和自动操作相互干扰
-        if(!gotSendMsgInfo){
-            return;
-        }
-        List<AccessibilityNodeInfo> delNodeInfos =
-                eventNodeInfo.findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.delete_message_view));
-        // 在长按后选项中拿到"删除该聊天"的节点，然后执行删除信息操作
-        if(delNodeInfos != null && delNodeInfos.size()>0) {
-            for (AccessibilityNodeInfo delNode : delNodeInfos) {
-                if ("删除该聊天".equals(delNode.getText())) {
+    /**
+     * 新的好友页面，点击接受按钮（从详细资料返回后，删除已接受item，再次点击其他的接受按钮）
+     */
+    private void clickAcceptView(){
+        if(clickNotification){
+            // 点击notification进入的好友请求页面
+            // 查找未接受的好友请求，点击请求按钮
+            List<AccessibilityNodeInfo> nodeInfos = accessibilityNodeInfo.
+                    findAccessibilityNodeInfosByViewId(
+                            getResources().getString(R.string.accept_view));
+            if(nodeInfos!=null&&nodeInfos.size()>0){
+                for (AccessibilityNodeInfo nodeInfo :nodeInfos){
+                    if("接受".equals(nodeInfo.getText().toString())){
+                        Log.i("accept", "从通知栏进入，点击接受按钮");
+                        Message deleteMsg = new Message();
+                        deleteMsg.what = AUTO_CLICK_ACCEPT_VIEW ;
+                        deleteMsg.obj = nodeInfo;
+                        taskHandler.sendMessageDelayed(deleteMsg, delayTime);
+                        return;
+                    }
+                }
+            }
+        }else if (clickBackFromFriendInfo){
+            // 从详细资料点击返回键，回到了好友请求页面
+            // 查找"已接受"，长按item，删除已接受的请求
+            List<AccessibilityNodeInfo> acceptedNodeInfos = accessibilityNodeInfo.
+                    findAccessibilityNodeInfosByViewId(
+                            getResources().getString(R.string.accepted_view));
+            Log.i("accept", "从详细资料返回，检查到有已添加的信息节点集合是"+acceptedNodeInfos);
+            if(acceptedNodeInfos!=null&&acceptedNodeInfos.size()>0){
+                Log.i("accept", "从详细资料返回，检查到有已添加的信息节点集合");
+                for (AccessibilityNodeInfo acceptedNodeInfo :acceptedNodeInfos){
+                    if("已添加".equals(acceptedNodeInfo.getText().toString())){
+                        Log.i("accept", "从详细资料返回，检查到有已添加的信息");
+                        List<AccessibilityNodeInfo> parentNodes = accessibilityNodeInfo.
+                                findAccessibilityNodeInfosByViewId(getResources().
+                                        getString(R.string.message_list_item));
+                        if(parentNodes!=null && parentNodes.size()>0){
+                            Log.i("accept", "从详细资料返回，拿到已添加item集合");
+                            AccessibilityNodeInfo parentNode = parentNodes.get(0);
+                            if(parentNode!=null){
+                                Log.i("accept", "从详细资料返回，长按已添加item");
+                                Message deleteMsg = new Message();
+                                deleteMsg.what = AUTO_LONG_CLICK_ACCEPTED_ITEM ;
+                                deleteMsg.obj = parentNode;
+                                taskHandler.sendMessageDelayed(deleteMsg, delayTime);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            // 没有"已接受"，则继续查找未接受的请求，点击请求按钮
+            List<AccessibilityNodeInfo> acceptNodeInfos = accessibilityNodeInfo.
+                    findAccessibilityNodeInfosByViewId(
+                            getResources().getString(R.string.accept_view));
+            if(acceptNodeInfos!=null&&acceptNodeInfos.size()>0){
+                for (AccessibilityNodeInfo acceptNodeInfo :acceptNodeInfos){
+                    if("接受".equals(acceptNodeInfo.getText().toString())){
+                        Log.i("accept", "从详细资料返回，点击接受按钮");
+                        Message deleteMsg = new Message();
+                        deleteMsg.what = AUTO_CLICK_ACCEPT_VIEW;
+                        deleteMsg.obj = acceptNodeInfo;
+                        taskHandler.sendMessageDelayed(deleteMsg, delayTime);
+                        return;
+                    }
+                }
+            }else{
+                // 未接受的请求也没有，说明已经将该页面下的所有好友请求都处理完了，
+                // 则点击返回键回到主页面
+                AccessibilityNodeInfo backNode = findBackView();
+                if(backNode!=null){
                     Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_DELETE_MSG_INFO;
-                    deleteMsg.obj = delNode.getParent();
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);// 延时1秒执行
+                    Log.i("accept", "没有需要处理的请求，返回主页面");
+                    deleteMsg.what = AUTO_CLICK_BACK_FROM_NEW_FRIEND ;
+                    deleteMsg.obj = backNode;
+                    taskHandler.sendMessageDelayed(deleteMsg, delayTime);
                 }
             }
         }
     }
 
-    private void autoClickMe(AccessibilityNodeInfo me){
-        if (me!=null && autoDeleteMsgInfo){
-            Log.i("xinye", "autoClickMe start");
-            AccessibilityNodeInfo parentNode = me.getParent();
-            if (parentNode!=null){
-                Log.i("xinye", "parentNode!=null and preParentNode isClickable = "+parentNode.isClickable());
+    /**
+     * 长按已接受item后弹出弹窗，点击删除按钮，删除已接受的好友请求
+     */
+    private void deleteAcceptedItem(){
+        if(longClickAccpetedItem){
+            // 长按已接受item，弹出弹窗，查找删除按钮
+            List<AccessibilityNodeInfo> deleteAcceptedNodeInfos = accessibilityNodeInfo.
+                    findAccessibilityNodeInfosByViewId(
+                            getResources().getString(R.string.delete_accepted_view));
+            if(deleteAcceptedNodeInfos!=null && deleteAcceptedNodeInfos.size()>0){
+                // 第一个就是的
+                AccessibilityNodeInfo deleteNode = deleteAcceptedNodeInfos.get(0);
+                if(deleteNode!=null && "删除".equals(deleteNode.getText().toString())){
+                    List<AccessibilityNodeInfo> parentNodes = accessibilityNodeInfo.
+                            findAccessibilityNodeInfosByViewId(
+                                    getResources().getString(R.string.accepted_item));
+                    if(parentNodes!=null && parentNodes.size()>0){
+                        AccessibilityNodeInfo parentNode = parentNodes.get(0);
+                        if(parentNode!=null){
+                            Log.i("accept", "点击删除按钮，删除已接受请求");
+                            Message deleteMsg = new Message();
+                            deleteMsg.what = AUTO_CLICK_DELETE_ACCEPTED_VIEW ;
+                            deleteMsg.obj = parentNode;
+                            taskHandler.sendMessageDelayed(deleteMsg, delayTime);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 点击详细资料页面的返回键，回到新的好友页面
+     */
+    private void clickBackFromFriendInfo(){
+        if (clickAcceptView){
+            // 则点击返回键回到新的好友页面
+            AccessibilityNodeInfo backNode = findBackView();
+            if(backNode!=null){
+                Log.i("accept", "点击返回键，从详细资料返回新的好友");
                 Message deleteMsg = new Message();
-                deleteMsg.what = AUTO_CLICK_ME;
-                deleteMsg.obj = parentNode;
-                delayHandler.sendMessageDelayed(deleteMsg, 1000);
+                deleteMsg.what = AUTO_CLICK_BACK_FROM_FRIEND_INFO ;
+                deleteMsg.obj = backNode;
+                taskHandler.sendMessageDelayed(deleteMsg, delayTime);
             }
         }
     }
 
-    private void autoClickSettings(){
-        Log.i("xinye", "enter autoClickSettings autoClickMe is "+autoClickMe);
-        if(!autoClickMe){
-            Log.i("xinye", "leave autoClickSettings");
-            return;
-        }
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.settings_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            Log.i("xinye", "leave autoClickSettings nodeInfos!=null");
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("设置".equals(nodeInfo.getText())){
-                    Log.i("xinye", "leave autoClickSettings find settings");
-                    AccessibilityNodeInfo parentNode;
-                    do {
-                        parentNode  = nodeInfo.getParent();
-                    }while (parentNode!=null && !parentNode.isClickable());
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_SETTINGS;
-                    deleteMsg.obj = parentNode;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
+    /**
+     * 检查微信是否不在前台并重启微信(紧支持判断微信不在前台并且手机主屏显示为桌面)
+     * @param accessibilityEvent 辅助服务的event事件
+     */
+    private void checkWeChatIsForeground(AccessibilityEvent accessibilityEvent){
+        /*发生event事件变化的不是微信时，需要判断是不是launcher主页面，以确定微信是否依旧在前台*/
+        if(!"com.tencent.mm".equals(accessibilityEvent.getPackageName())){
+            /*回到launcher主页面时，会收到TYPE_WINDOW_STATE_CHANGED， 可根据该事件判断当前手机处于launcher界面*/
+            if(accessibilityEvent.getEventType()==
+                    AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED){
+                Message deleteMsg = new Message();
+                deleteMsg.what = AUTO_START_WECHAT;
+                taskHandler.sendMessageDelayed(deleteMsg, delayTime);// 延时1s执行
             }
         }
     }
 
-    private void autoClickCommon(){
-        if(!autoClickSettings)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.common_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("通用".equals(nodeInfo.getText())){
-                    AccessibilityNodeInfo parentNode;
-                    do {
-                        parentNode  = nodeInfo.getParent();
-                    }while (parentNode!=null && !parentNode.isClickable());
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_COMMON;
-                    deleteMsg.obj = parentNode;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private void autoClickFeature(){
-        if(!autoClickCommon)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.feature_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("功能".equals(nodeInfo.getText())){
-                    AccessibilityNodeInfo parentNode;
-                    do {
-                        parentNode  = nodeInfo.getParent();
-                    }while (parentNode!=null && !parentNode.isClickable());
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_FEATURE;
-                    deleteMsg.obj = parentNode;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private void autoClickMsgHelper(){
-        if(!autoClickFeature)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(getResources().getString(R.string.msg_helper_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("群发助手".equals(nodeInfo.getText())){
-                    AccessibilityNodeInfo parentNode;
-                    do {
-                        parentNode  = nodeInfo.getParent();
-                    }while (parentNode!=null && !parentNode.isClickable());
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_MSG_HELPER;
-                    deleteMsg.obj = parentNode;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private void autoClickStartMsg(){
-        if(!autoClickMsgHelper)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.start_msg_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("开始群发".equals(nodeInfo.getText())){
-                    AccessibilityNodeInfo parentNode;
-                    do {
-                        parentNode  = nodeInfo.getParent();
-                    }while (parentNode!=null && !parentNode.isClickable());
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_START_MSG;
-                    deleteMsg.obj = parentNode;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private void autoClickNewMsg(){
-        if(!autoClickStartMsg)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByText("新建群发");
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("新建群发".equals(nodeInfo.getText())){
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_NEW_MSG;
-                    deleteMsg.obj = nodeInfo;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private void autoClickChooseAll(){
-        if(!autoClickNewMsg)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.choose_all_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("全选".equals(nodeInfo.getText())){
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_CLICK_CHOOSE_ALL;
-                    deleteMsg.obj = nodeInfo;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private AccessibilityNodeInfo findNextButton(){
+    /**
+     * 在主页面的根节点上查找更多功能按钮+
+     * @return 更多功能按钮节点
+     */
+    private AccessibilityNodeInfo findMoreFunctionView(){
         AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
         if(rootNodeInfo==null)
             return null;
-        List<AccessibilityNodeInfo> nodeInfos = rootNodeInfo.
-                findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.next_view));
-        if(nodeInfos != null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                CharSequence text = nodeInfo.getText();
-                if (text!=null&&text.toString().contains("下一步")){
-                    return nodeInfo;
+        List<AccessibilityNodeInfo> nodes = rootNodeInfo.findAccessibilityNodeInfosByViewId(
+                getResources().getString(R.string.function_view));
+        if(nodes != null && nodes.size()>0){
+            // 第一个如果不是，那么基本上就不是了，如果微信升级，则需要重新查看布局层级
+            AccessibilityNodeInfo functionNode = nodes.get(0);
+            if(functionNode!=null){
+                AccessibilityNodeInfo functionParentNode = functionNode.getParent();
+                if(functionParentNode!=null && functionParentNode.getContentDescription()!= null &&
+                        "更多功能按钮".equals(functionParentNode.getContentDescription().toString())){
+                    return functionNode;
                 }
             }
         }
         return null;
     }
 
-    private void autoClickNext(){
-        Log.i("xinye", "enter autoClickNext autoClickChooseAll is "+autoClickChooseAll);
-        if(!autoClickChooseAll)
-            return;
-        AccessibilityNodeInfo nextNode = findNextButton();
-        if (nextNode!=null){
-            Log.i("xinye", "enter autoClickNext nextNode!=null");
-            Message deleteMsg = new Message();
-            deleteMsg.what = AUTO_CLICK_NEXT;
-            deleteMsg.obj = nextNode;
-            delayHandler.sendMessageDelayed(deleteMsg, 1000);
-        }
-    }
-
-    private void autoSetMsg(){
-        Log.i("xinye", "enter autoSetMsg autoClickNext is "+autoClickNext);
-        if(!autoClickNext)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.edit_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            Log.i("xinye", "autoSetMsg nodeInfos!=null");
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                Log.i("xinye", "autoSetMsg nodeInfo.getClassName() is "+nodeInfo.getClassName());
-                if ("android.widget.EditText".equals(nodeInfo.getClassName())){
-                    Log.i("xinye", "autoSetMsg ready AUTO_SET_MSG");
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_SET_MSG;
-                    deleteMsg.obj = nodeInfo;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-        Log.i("xinye", "leave autoSetMsg autoClickNext is "+autoClickNext);
-    }
-
-    private void autoSendMsg(){
-        if(!autoSetMsg)
-            return;
-        List<AccessibilityNodeInfo> nodeInfos = mAccessibilityNodeInfo.
-                findAccessibilityNodeInfosByViewId(
-                        getResources().getString(R.string.send_view));
-        if (nodeInfos!=null && nodeInfos.size()>0){
-            for (AccessibilityNodeInfo nodeInfo : nodeInfos){
-                if ("发送".equals(nodeInfo.getText())){
-                    Message deleteMsg = new Message();
-                    deleteMsg.what = AUTO_SEND_MSG;
-                    deleteMsg.obj = nodeInfo;
-                    delayHandler.sendMessageDelayed(deleteMsg, 1000);
-                }
-            }
-        }
-    }
-
-    private AccessibilityNodeInfo findBackButton(){
+    private AccessibilityNodeInfo findBackView(){
         AccessibilityNodeInfo rootNodeInfo = getRootInActiveWindow();
         if(rootNodeInfo==null)
             return null;
@@ -829,17 +748,4 @@ public class ScanQRService extends AccessibilityService {
         }
         return null;
     }
-
-    private void autoBackAfterSengMsg(){
-        if(!autoSendMsg)
-            return;
-        AccessibilityNodeInfo backNode = findBackButton();
-        if(backNode!=null){
-            Message deleteMsg = new Message();
-            deleteMsg.what = AUTO_BACK;
-            deleteMsg.obj = backNode;
-            delayHandler.sendMessageDelayed(deleteMsg, 1000);
-        }
-    }
-
 }
