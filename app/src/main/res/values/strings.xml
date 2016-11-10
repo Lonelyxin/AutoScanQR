@@ -8,30 +8,30 @@
         \t\t1、微信自动扫码登陆网页版；\r\n
         \t\t2、保持微信长驻前台。\r\n
         \t\t3、自动通过好友验证。\r\n
-        \t\t4、自动群发消息。\r\n
+        \t\t4、自动群发消息(功能暂未开通)。\r\n
         提示：\r\n
         \t\t开启后请到微信主页面，即可享受辅助服务。\r\n
         \t\t支持Android 4.1以上系统。
     </string>
-    <string name="message_list_item">com.tencent.mm:id/ads</string>
-    <string name="function_view">com.tencent.mm:id/es</string>
-    <string name="message_textview">com.tencent.mm:id/adw</string>
-    <string name="scan_view">com.tencent.mm:id/et</string>
-    <string name="delete_message_view">com.tencent.mm:id/et</string>
-    <string name="login_view">com.tencent.mm:id/af3</string>
-    <string name="me_view">com.tencent.mm:id/bnu</string>
-    <string name="settings_view">android:id/title</string>
-    <string name="common_view">android:id/title</string>
-    <string name="feature_view">android:id/title</string>
-    <string name="msg_helper_view">android:id/title</string>
-    <string name="start_msg_view">android:id/title</string>
-    <string name="choose_all_view">com.tencent.mm:id/bmr</string>
-    <string name="next_view">com.tencent.mm:id/fw</string>
-    <string name="edit_view">com.tencent.mm:id/a2a</string>
-    <string name="send_view">com.tencent.mm:id/a2g</string>
-    <string name="back_view">com.tencent.mm:id/gd</string>
-    <string name="accept_view">com.tencent.mm:id/as6</string>
-    <string name="accepted_view">com.tencent.mm:id/as8</string>
-    <string name="delete_accepted_view">com.tencent.mm:id/et</string>
-    <string name="accepted_item">com.tencent.mm:id/as2</string>
+    <string name="message_list_item">com.tencent.mm:id/ads</string>//主页聊天列表item
+    <string name="function_view">com.tencent.mm:id/es</string>// 更多功能按钮+
+    <string name="message_textview">com.tencent.mm:id/adw</string>//聊天列表item中的text节点
+    <string name="scan_view">com.tencent.mm:id/et</string>//更多功能中的扫一扫
+    <string name="delete_message_view">com.tencent.mm:id/et</string>//长按聊天列表item弹出的窗口中，删除按钮
+    <string name="login_view">com.tencent.mm:id/af3</string>//扫码后显示的web微信登录按钮
+    <string name="me_view">com.tencent.mm:id/bnu</string>//微信主页右下，我
+    <string name="settings_view">android:id/title</string>// 微信主页点击我后的页面，设置按钮
+    <string name="common_view">android:id/title</string>// 设置页面，通用按钮
+    <string name="feature_view">android:id/title</string>// 通用页面，功能按钮
+    <string name="msg_helper_view">android:id/title</string>// 功能页面，群发助手
+    <string name="start_msg_view">android:id/title</string>// 群发助手页面，开始群发按钮
+    <string name="choose_all_view">com.tencent.mm:id/bmr</string>// 全选按钮
+    <string name="next_view">com.tencent.mm:id/fw</string>//下一步按钮
+    <string name="edit_view">com.tencent.mm:id/a2a</string>//群发聊天窗口的文字输入
+    <string name="send_view">com.tencent.mm:id/a2g</string>//发送按钮
+    <string name="back_view">com.tencent.mm:id/gd</string>//返回按钮
+    <string name="accept_view">com.tencent.mm:id/as6</string>//新的好友页面，接受按钮
+    <string name="accepted_view">com.tencent.mm:id/as8</string>//新的好友页面，已添加text节点
+    <string name="delete_accepted_view">com.tencent.mm:id/et</string>//长按已添加好友，弹出的删除text节点
+    <string name="accepted_item">com.tencent.mm:id/as2</string>//新的好友页面，已添加的item
 </resources>
