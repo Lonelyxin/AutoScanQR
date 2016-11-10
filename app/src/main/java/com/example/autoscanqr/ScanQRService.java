@@ -221,28 +221,28 @@ public class ScanQRService extends AccessibilityService {
                     if(clickLoginView){
                         isScanQrTaskDoing = false;
                         clickLoginView = false;
-//                        Log.i("liuxin", "扫码工作结束，准备开始下一项任务");
-//                        Message message = new Message();
-//                        message.what = START_NEXT_TASK;
-//                        taskHandler.sendMessageDelayed(message, delayTime);
+                        Log.i("liuxin", "扫码工作结束，准备开始下一项任务");
+                        Message message = new Message();
+                        message.what = START_NEXT_TASK;
+                        taskHandler.sendMessageDelayed(message, delayTime);
                         return;
                     }
                     // 长按item后点击删除该聊天
-                    Log.i("liuxin", "扫码工作，长按item后点击删除该聊天");
                     clickDeleteView();
                     // 点击更多功能按钮+
-                    Log.i("liuxin", "扫码工作，点击更多功能按钮");
                     clickMoreFunctionView();
                     // 点击扫一扫按钮
-                    Log.i("liuxin", "扫码工作，点击扫一扫按钮");
                     clickScanView();
                     // 点击登录按钮
-                    Log.i("liuxin", "扫码工作，点击登录按钮");
                     clickLoginView();
                 }else if(isFriendTaskDoing){
                     if(clickBackFromNewFriend){
                         isFriendTaskDoing = false;
                         clickBackFromNewFriend = false;
+                        Log.i("liuxin", "好友验证结束，准备开始下一项任务");
+                        Message message = new Message();
+                        message.what = START_NEXT_TASK;
+                        taskHandler.sendMessageDelayed(message, delayTime);
                         return;
                     }
                     // 通过Notification进入新的好友请求页面，点击接受按钮
@@ -392,9 +392,11 @@ public class ScanQRService extends AccessibilityService {
     }
 
     private void addWaitTaskInMsgList(int taskType, Object taskObject){
-        Log.i("", "");
+        Log.i("liuxin", "addWaitTaskInMsgList 添加等待任务，类型 "+taskType);
         if(!haveTargetTaskMessage(taskType)){
+            Log.i("liuxin", "addWaitTaskInMsgList 任务列表中没有重复任务，可添加");
             if(msgList == null){
+                Log.i("liuxin", "addWaitTaskInMsgList 任务集合初始化");
                 msgList = new ArrayList<>();
             }
             Message sendMsg = new Message();
@@ -402,7 +404,7 @@ public class ScanQRService extends AccessibilityService {
             sendMsg.obj = taskObject;
             msgList.add(sendMsg);
         }
-
+        Log.i("liuxin", "addWaitTaskInMsgList 退出");
     }
 
     /**
@@ -416,6 +418,7 @@ public class ScanQRService extends AccessibilityService {
                         getResources().getString(R.string.delete_message_view));
         // 在长按后选项中拿到"删除该聊天"的节点，然后执行删除信息操作
         if(delNodeInfos != null && delNodeInfos.size()>0) {
+            Log.i("liuxin", "扫码工作，长按item后点击删除该聊天");
             for (AccessibilityNodeInfo delNode : delNodeInfos) {
                 if (delNode.getText()!=null&&"删除该聊天".equals(delNode.getText().toString())) {
                     Message deleteMsg = new Message();
@@ -436,6 +439,7 @@ public class ScanQRService extends AccessibilityService {
         AccessibilityNodeInfo moreFunctionNode = findMoreFunctionView();
         if(moreFunctionNode==null)
             return;
+        Log.i("liuxin", "扫码工作，点击更多功能按钮");
         Message deleteMsg = new Message();
         deleteMsg.what = AUTO_CLICK_MORE_FUNCTION_VIEW;
         deleteMsg.obj = moreFunctionNode.getParent();
@@ -457,6 +461,7 @@ public class ScanQRService extends AccessibilityService {
             // 目前更多功能列表中，第三条Node就是“扫一扫”
             AccessibilityNodeInfo scanNode = functionNodeInfos.get(2);
             if(scanNode != null){
+                Log.i("liuxin", "扫码工作，点击扫一扫按钮");
                 Message deleteMsg = new Message();
                 deleteMsg.what = AUTO_CLICK_SCAN_VIEW;
                 deleteMsg.obj = scanNode.getParent();
@@ -485,6 +490,7 @@ public class ScanQRService extends AccessibilityService {
                 CharSequence text = loginNode.getText();
                 if(text!=null && "登录".equalsIgnoreCase(text.toString())){
                     // 发送延时两秒消息，去模拟点击微信的"+"按钮，打开更多功能列表，进而模拟点击扫一扫
+                    Log.i("liuxin", "扫码工作，点击登录按钮");
                     Message deleteMsg = new Message();
                     deleteMsg.what = AUTO_CLICK_LOGIN_VIEW;
                     deleteMsg.obj = loginNode;
@@ -504,6 +510,7 @@ public class ScanQRService extends AccessibilityService {
         if(haveNotificationInfo(accessibilityEvent, "请求添加你为朋友")){
             if( isScanQrTaskDoing || isSendMsgTaskDoing){
                 // 正在执行扫码任务或者群发消息的任务
+                Log.i("liuxin", "====chooseTaskToDo 正在执行扫码或群发任务，加入等待队列====");
                 addWaitTaskInMsgList(TASK_NEW_FRIEND, accessibilityEvent);
             }else if (isFriendTaskDoing){
                 // 正在执行好友验证任务, 忽略此次任务请求
@@ -565,7 +572,7 @@ public class ScanQRService extends AccessibilityService {
      * 新的好友页面，点击接受按钮（从详细资料返回后，删除已接受item，再次点击其他的接受按钮）
      */
     private void clickAcceptView(AccessibilityEvent event){
-        Log.i("accept", "event.getContentDescription = "+event.getContentDescription());
+        Log.i("liuxin", "event.getContentDescription = "+event.getContentDescription());
         if(clickNotification){
             // 点击notification进入的好友请求页面
             // 查找未接受的好友请求，点击请求按钮
@@ -575,7 +582,7 @@ public class ScanQRService extends AccessibilityService {
             if(nodeInfos!=null&&nodeInfos.size()>0){
                 for (AccessibilityNodeInfo nodeInfo :nodeInfos){
                     if(nodeInfo.getText()!=null&&"接受".equals(nodeInfo.getText().toString())){
-                        Log.i("accept", "从通知栏进入，点击接受按钮");
+                        Log.i("liuxin", "从通知栏进入，点击接受按钮");
                         Message deleteMsg = new Message();
                         deleteMsg.what = AUTO_CLICK_ACCEPT_VIEW ;
                         deleteMsg.obj = nodeInfo;
@@ -590,19 +597,19 @@ public class ScanQRService extends AccessibilityService {
             List<AccessibilityNodeInfo> acceptedNodeInfos = accessibilityNodeInfo.
                     findAccessibilityNodeInfosByViewId(
                             getResources().getString(R.string.accepted_view));
-            Log.i("accept", "从详细资料返回，检查到有已添加的信息节点集合是"+acceptedNodeInfos);
+            Log.i("liuxin", "从详细资料返回，检查到有已添加的信息节点集合是"+acceptedNodeInfos);
             if(acceptedNodeInfos!=null&&acceptedNodeInfos.size()>0){
-                Log.i("accept", "从详细资料返回，检查到有已添加的信息节点集合");
+                Log.i("liuxin", "从详细资料返回，检查到有已添加的信息节点集合");
                 for (AccessibilityNodeInfo acceptedNodeInfo :acceptedNodeInfos){
                     if(acceptedNodeInfo.getText()!=null&&"已添加".equals(acceptedNodeInfo.getText().toString())){
-                        Log.i("accept", "从详细资料返回，检查到有已添加的信息");
+                        Log.i("liuxin", "从详细资料返回，检查到有已添加的信息");
                         AccessibilityNodeInfo parentNode = acceptedNodeInfo.getParent();
                         if(parentNode!=null){//"已添加"的父节点
                             AccessibilityNodeInfo preParentNode = acceptedNodeInfo.getParent();
                             if(preParentNode != null){//as2节点，item的第二级节点
                                 AccessibilityNodeInfo itemNode = preParentNode.getParent();
                                 if(itemNode!=null){//item节点
-                                    Log.i("accept", "从详细资料返回，长按已添加item");
+                                    Log.i("liuxin", "从详细资料返回，长按已添加item");
                                     Message deleteMsg = new Message();
                                     deleteMsg.what = AUTO_LONG_CLICK_ACCEPTED_ITEM ;
                                     deleteMsg.obj = parentNode;
@@ -621,7 +628,7 @@ public class ScanQRService extends AccessibilityService {
             if(acceptNodeInfos!=null&&acceptNodeInfos.size()>0){
                 for (AccessibilityNodeInfo acceptNodeInfo :acceptNodeInfos){
                     if(acceptNodeInfo.getText()!=null&&"接受".equals(acceptNodeInfo.getText().toString())){
-                        Log.i("accept", "从详细资料返回，点击接受按钮");
+                        Log.i("liuxin", "从详细资料返回，点击接受按钮");
                         Message deleteMsg = new Message();
                         deleteMsg.what = AUTO_CLICK_ACCEPT_VIEW;
                         deleteMsg.obj = acceptNodeInfo;
@@ -635,7 +642,7 @@ public class ScanQRService extends AccessibilityService {
                 AccessibilityNodeInfo backNode = findBackView();
                 if(backNode!=null){
                     Message deleteMsg = new Message();
-                    Log.i("accept", "没有需要处理的请求，返回主页面");
+                    Log.i("liuxin", "没有需要处理的请求，返回主页面");
                     deleteMsg.what = AUTO_CLICK_BACK_FROM_NEW_FRIEND ;
                     deleteMsg.obj = backNode;
                     taskHandler.sendMessageDelayed(deleteMsg, delayTime);
@@ -648,23 +655,23 @@ public class ScanQRService extends AccessibilityService {
      * 长按已接受item后弹出弹窗，点击删除按钮，删除已接受的好友请求
      */
     private void deleteAcceptedItem(){
-        Log.i("accept", "deleteAcceptedItem longClickAccpetedItem is "+longClickAccpetedItem);
+        Log.i("liuxin", "deleteAcceptedItem longClickAccpetedItem is "+longClickAccpetedItem);
         if(longClickAccpetedItem){
             // 长按已接受item，弹出弹窗，查找删除按钮
             List<AccessibilityNodeInfo> deleteAcceptedNodeInfos = accessibilityNodeInfo.
                     findAccessibilityNodeInfosByViewId(
                             getResources().getString(R.string.delete_accepted_view));
-            Log.i("accept", "deleteAcceptedItem deleteAcceptedNodeInfos is "+deleteAcceptedNodeInfos);
+            Log.i("liuxin", "deleteAcceptedItem deleteAcceptedNodeInfos is "+deleteAcceptedNodeInfos);
             if(deleteAcceptedNodeInfos!=null && deleteAcceptedNodeInfos.size()>0){
                 // 第一个就是的
                 AccessibilityNodeInfo deleteNode = deleteAcceptedNodeInfos.get(0);
                 if(deleteNode!=null && deleteNode.getText()!=null&&"删除".equals(deleteNode.getText().toString())){
-                    Log.i("accept", "deleteAcceptedItem 拿到删除按钮");
+                    Log.i("liuxin", "deleteAcceptedItem 拿到删除按钮");
                     AccessibilityNodeInfo parentNode = deleteNode.getParent();
                     if(parentNode!=null){//"删除"的父节点
                         AccessibilityNodeInfo clickNode = parentNode.getParent();
                         if(clickNode!=null){//可点击的节点，即item的一级节点
-                            Log.i("accept", "点击删除按钮，删除已接受请求");
+                            Log.i("liuxin", "点击删除按钮，删除已接受请求");
                             Message deleteMsg = new Message();
                             deleteMsg.what = AUTO_CLICK_DELETE_ACCEPTED_VIEW ;
                             deleteMsg.obj = parentNode;
@@ -688,7 +695,7 @@ public class ScanQRService extends AccessibilityService {
             // 则点击返回键回到新的好友页面
             AccessibilityNodeInfo backNode = findBackView();
             if(backNode!=null){
-                Log.i("accept", "点击返回键，从详细资料返回新的好友");
+                Log.i("liuxin", "点击返回键，从详细资料返回新的好友");
                 Message deleteMsg = new Message();
                 deleteMsg.what = AUTO_CLICK_BACK_FROM_FRIEND_INFO ;
                 deleteMsg.obj = backNode;
